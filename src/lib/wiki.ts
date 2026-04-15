@@ -40,6 +40,15 @@ export function buildIndexMarkdown(pages: string[]): string {
   return `# Wiki Index\n\n> generated: ${now}\n\n${links}\n`
 }
 
+export function buildLogEntry(operation: string, args: { source?: string; files?: string[]; notes?: string }): string {
+  const now = new Date().toISOString().replace("T", " ").slice(0, 16)
+  const lines = [`\n## ${now} — ${operation}`]
+  if (args.source) lines.push(`- Source: ${args.source}`)
+  if (args.files?.length) lines.push(`- Files touched: ${args.files.map(f => `[[${f}]]`).join(", ")}`)
+  if (args.notes) lines.push(`- Notes: ${args.notes}`)
+  return lines.join("\n") + "\n"
+}
+
 export type BrokenLink = { source: string; link: string }
 
 export function detectBrokenLinks(

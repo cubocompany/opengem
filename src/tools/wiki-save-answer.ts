@@ -1,6 +1,6 @@
 import { executeObsidianCli, errorResult } from "../lib/cli"
 import { resolvePluginConfig, resolveVault } from "../lib/config"
-import type { WikiPaths } from "../lib/wiki"
+import { buildLogEntry, type WikiPaths } from "../lib/wiki"
 import type { ResultEnvelope } from "../lib/types"
 
 type WikiSaveAnswerData = { path: string; vault: string }
@@ -38,5 +38,18 @@ export async function runWikiSaveAnswerTool(args: {
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 
-  return { ...result, data: result.ok ? { path, vault } : null }
+  if (!result.ok) return { ...result, data: null }
+
+  // Append to LOG.md (best-effort)
+  const logContent = buildLogEntry("query", {
+    source: args.input.question,
+    files: [path],
+  })
+  await executeObsidianCli(
+    args.shell, "append",
+    { path: `${args.wikiPaths.wiki}/LOG.md`, content: logContent, vault },
+    { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
+  ).catch(() => { /* best-effort */ })
+
+  return { ...result, data: { path, vault } }
 }

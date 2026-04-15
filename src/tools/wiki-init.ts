@@ -1,12 +1,15 @@
 import { executeObsidianCli, errorResult } from "../lib/cli"
 import { resolvePluginConfig, resolveVault } from "../lib/config"
+import { detectActiveVault, listVaults } from "../lib/vault"
 import type { WikiPaths } from "../lib/wiki"
 import type { ResultEnvelope } from "../lib/types"
 
 type WikiInitData = {
   vault: string
+  vaultPath: string
   created: string[]
   skipped: string[]
+  detectedFrom: "explicit" | "config" | "active" | "only-vault"
 }
 
 const SCHEMA_MD = `# Wiki Schema
@@ -78,11 +81,44 @@ export async function runWikiInitTool(args: {
   activeVault: string | null
   wikiPaths: WikiPaths
 }): Promise<ResultEnvelope<WikiInitData | null>> {
-  const config = resolvePluginConfig({ defaultVault: args.defaultVault })
-  const vault = resolveVault({ action: "write", inputVault: args.input.vault ?? null, activeVault: args.activeVault, config })
+  // Vault resolution order:
+  // 1. explicit input.vault
+  // 2. defaultVault from config
+  // 3. detect active vault via `obsidian vault`
+  // 4. if only one vault exists, use it automatically
+  let vault: string | null = null
+  let vaultPath = ""
+  let detectedFrom: WikiInitData["detectedFrom"] = "explicit"
+
+  if (args.input.vault) {
+    vault = args.input.vault
+    detectedFrom = "explicit"
+  } else if (args.defaultVault) {
+    vault = args.defaultVault
+    detectedFrom = "config"
+  } else {
+    const active = await detectActiveVault(args.shell)
+    if (active) {
+      vault = active.name
+      vaultPath = active.path
+      detectedFrom = "active"
+    } else {
+      const all = await listVaults(args.shell)
+      if (all.length === 1) {
+        vault = all[0].name
+        vaultPath = all[0].path
+        detectedFrom = "only-vault"
+      }
+    }
+  }
 
   if (!vault) {
-    return errorResult("VAULT_REQUIRED", "Write commands require a vault", "Pass vault or configure defaultVault", "obsidian_wiki_init", args.input, ["cli", "app", "vault"], ["cli", "app", "vault"])
+    return errorResult(
+      "VAULT_REQUIRED",
+      "Could not detect a vault automatically. Please provide vault name.",
+      "Pass vault='My Vault' or set defaultVault in plugin config",
+      "obsidian_wiki_init", args.input, ["cli", "app", "vault"], ["cli", "app", "vault"],
+    )
   }
 
   const force = args.input.force ?? false
@@ -136,7 +172,7 @@ export async function runWikiInitTool(args: {
     args: args.input,
     requiredCapabilities: ["cli", "app", "vault"],
     checkedCapabilities: ["cli", "app", "vault"],
-    data: { vault, created, skipped },
+    data: { vault, vaultPath, created, skipped, detectedFrom },
     stdout: "",
     stderr: "",
     exitCode: 0,

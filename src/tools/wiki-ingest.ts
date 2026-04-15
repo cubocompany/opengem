@@ -1,6 +1,6 @@
 import { executeObsidianCli, errorResult } from "../lib/cli"
 import { resolvePluginConfig, resolveVault } from "../lib/config"
-import type { WikiPaths } from "../lib/wiki"
+import { buildLogEntry, type WikiPaths } from "../lib/wiki"
 import type { ResultEnvelope } from "../lib/types"
 
 type WikiIngestData = { rawPath: string; wikiPath: string; vault: string }
@@ -35,5 +35,18 @@ export async function runWikiIngestTool(args: {
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 
-  return { ...wikiResult, data: wikiResult.ok ? { rawPath: rawName, wikiPath: wikiName, vault } : null }
+  if (!wikiResult.ok) return { ...wikiResult, data: null }
+
+  // Append to LOG.md (best-effort — ignore failure so ingest still succeeds)
+  const logContent = buildLogEntry("ingest", {
+    source: args.input.sourceName,
+    files: [rawName, wikiName],
+  })
+  await executeObsidianCli(
+    args.shell, "append",
+    { path: `${args.wikiPaths.wiki}/LOG.md`, content: logContent, vault },
+    { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
+  ).catch(() => { /* best-effort */ })
+
+  return { ...wikiResult, data: { rawPath: rawName, wikiPath: wikiName, vault } }
 }

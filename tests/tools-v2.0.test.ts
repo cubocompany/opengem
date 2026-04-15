@@ -15,22 +15,49 @@ const wikiPaths = resolveWikiPaths({ vault: "Main" })
 // --- wiki-init ---
 
 test("runWikiInitTool creates schema, index, log, and raw keep", async () => {
-  const created: string[] = []
-  const shell = async (cmd: string[]) => {
-    const name = cmd.find(a => a.startsWith("name="))?.replace("name=", "") ?? ""
-    created.push(name)
-    return { exitCode: 0, stdout: "", stderr: "" }
-  }
+  const shell = async () => ({ exitCode: 0, stdout: "", stderr: "" })
   const result = await runWikiInitTool({ shell, input: { vault: "Main" }, defaultVault: "Main", activeVault: null, wikiPaths })
   expect(result.ok).toBe(true)
   expect(result.data!.created).toContain("schema/SCHEMA.md")
   expect(result.data!.created).toContain("wiki/INDEX.md")
   expect(result.data!.created).toContain("wiki/LOG.md")
   expect(result.data!.vault).toBe("Main")
+  expect(result.data!.detectedFrom).toBe("explicit")
 })
 
-test("runWikiInitTool requires vault", async () => {
-  const result = await runWikiInitTool({ shell: okShell(), input: {}, defaultVault: null, activeVault: "Daily", wikiPaths })
+test("runWikiInitTool auto-detects active vault when no vault provided", async () => {
+  const vaultOutput = "name\tMy Auto Vault\npath\tD:\\obsidian\\My Auto Vault\nfiles\t5\nfolders\t2\nsize\t1024"
+  const shell = async (cmd: string[]) => {
+    if (cmd[1] === "vault") return { exitCode: 0, stdout: vaultOutput, stderr: "" }
+    return { exitCode: 0, stdout: "", stderr: "" }
+  }
+  const result = await runWikiInitTool({ shell, input: {}, defaultVault: null, activeVault: null, wikiPaths })
+  expect(result.ok).toBe(true)
+  expect(result.data!.vault).toBe("My Auto Vault")
+  expect(result.data!.detectedFrom).toBe("active")
+})
+
+test("runWikiInitTool falls back to only-vault when active detection fails", async () => {
+  const vaultsOutput = "Main\tD:\\obsidian\\Main\t10\t2\t4096"
+  const shell = async (cmd: string[]) => {
+    if (cmd[1] === "vault") return { exitCode: 1, stdout: "", stderr: "no active vault" }
+    if (cmd[1] === "vaults") return { exitCode: 0, stdout: vaultsOutput, stderr: "" }
+    return { exitCode: 0, stdout: "", stderr: "" }
+  }
+  const result = await runWikiInitTool({ shell, input: {}, defaultVault: null, activeVault: null, wikiPaths })
+  expect(result.ok).toBe(true)
+  expect(result.data!.vault).toBe("Main")
+  expect(result.data!.detectedFrom).toBe("only-vault")
+})
+
+test("runWikiInitTool returns VAULT_REQUIRED when detection fails and multiple vaults exist", async () => {
+  const vaultsOutput = "Main\tD:\\obsidian\\Main\t10\t2\t4096\nWork\tD:\\obsidian\\Work\t5\t1\t2048"
+  const shell = async (cmd: string[]) => {
+    if (cmd[1] === "vault") return { exitCode: 1, stdout: "", stderr: "" }
+    if (cmd[1] === "vaults") return { exitCode: 0, stdout: vaultsOutput, stderr: "" }
+    return { exitCode: 0, stdout: "", stderr: "" }
+  }
+  const result = await runWikiInitTool({ shell, input: {}, defaultVault: null, activeVault: null, wikiPaths })
   expect(result.ok).toBe(false)
   expect(result.error?.code).toBe("VAULT_REQUIRED")
 })
@@ -71,7 +98,8 @@ test("runWikiIngestTool stores raw and wiki files", async () => {
   expect(result.data!.rawPath).toBe("raw/article.md")
   expect(result.data!.wikiPath).toBe("wiki/article.md")
   expect(result.data!.vault).toBe("Main")
-  expect(calls).toHaveLength(2)
+  // 2 create calls (raw + wiki) + 1 log append
+  expect(calls).toHaveLength(3)
 })
 
 test("runWikiIngestTool requires vault for write", async () => {
@@ -280,8 +308,8 @@ test("runWikiSaveAnswerTool requires vault", async () => {
 })
 
 test("runWikiSaveAnswerTool includes tags in frontmatter when provided", async () => {
-  let captured: string[] = []
-  const shell = async (cmd: string[]) => { captured = cmd; return { exitCode: 0, stdout: "", stderr: "" } }
+  const allCalls: string[][] = []
+  const shell = async (cmd: string[]) => { allCalls.push(cmd); return { exitCode: 0, stdout: "", stderr: "" } }
   await runWikiSaveAnswerTool({
     shell,
     input: { question: "What?", answer: "This.", tags: ["typescript", "faq"] },
@@ -289,7 +317,9 @@ test("runWikiSaveAnswerTool includes tags in frontmatter when provided", async (
     activeVault: null,
     wikiPaths,
   })
-  const contentArg = captured.find(a => a.startsWith("content=")) ?? ""
+  // First call is the create (note content), last call is the log append
+  const createCall = allCalls[0]
+  const contentArg = createCall.find(a => a.startsWith("content=")) ?? ""
   expect(contentArg).toContain("typescript")
 })
 
