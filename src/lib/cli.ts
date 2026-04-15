@@ -54,11 +54,10 @@ export async function executeObsidianCli(
   const mappedError =
     result.exitCode === 0
       ? null
-      : (meta.mapError?.({ exitCode: result.exitCode, stderr: result.stderr }) ?? {
-          code: "COMMAND_NOT_ENABLED",
-          kind: "runtime",
-          message: result.stderr || "CLI command failed",
-        })
+      : (meta.mapError?.({ exitCode: result.exitCode, stderr: result.stderr })
+        ?? (result.exitCode === 127
+          ? { code: "CLI_NOT_FOUND", kind: "capability", message: "obsidian CLI is not installed or not on PATH" }
+          : { code: "COMMAND_NOT_ENABLED", kind: "runtime", message: result.stderr || "CLI command failed" }))
 
   return {
     schemaVersion: "1.0",

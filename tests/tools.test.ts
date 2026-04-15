@@ -6,6 +6,7 @@ import { runSearchTool } from "../src/tools/search"
 import { runCreateNoteTool } from "../src/tools/create-note"
 import { runAppendNoteTool } from "../src/tools/append-note"
 import { runSetPropertyTool } from "../src/tools/set-property"
+import { ObsidianPlugin } from "../src/index"
 
 const okShell = (stdout = "") => async () => ({ exitCode: 0, stdout, stderr: "" })
 const failShell = (stderr = "error") => async () => ({ exitCode: 1, stdout: "", stderr })
@@ -249,4 +250,31 @@ test("runSetPropertyTool rejects missing target", async () => {
 
   expect(result.ok).toBe(false)
   expect(result.error?.code).toBe("FILE_OR_PATH_REQUIRED")
+})
+
+// --- plugin registration ---
+
+test("plugin registers all MVP tools", async () => {
+  const hooks = await ObsidianPlugin({} as never, {})
+
+  expect(hooks.tool).toBeDefined()
+  expect(hooks.tool!.obsidian_read).toBeDefined()
+  expect(hooks.tool!.obsidian_search).toBeDefined()
+  expect(hooks.tool!.obsidian_create_note).toBeDefined()
+  expect(hooks.tool!.obsidian_append_note).toBeDefined()
+  expect(hooks.tool!.obsidian_set_property).toBeDefined()
+  expect(hooks.tool!.obsidian_skills_check).toBeDefined()
+  expect(hooks.tool!.obsidian_env_doctor).toBeDefined()
+})
+
+// --- degraded mode ---
+
+test("runReadTool returns CLI_NOT_FOUND when shell exits 127", async () => {
+  const result = await runReadTool({
+    shell: async () => ({ exitCode: 127, stdout: "", stderr: "obsidian: command not found" }),
+    input: { file: "My Note" },
+  })
+
+  expect(result.ok).toBe(false)
+  expect(result.error?.code).toBe("CLI_NOT_FOUND")
 })
