@@ -1,8 +1,28 @@
 {
   "name": "obsidian-opencode-plugin",
   "version": "0.1.0",
+  "description": "OpenCode plugin for Obsidian — read, write, search, and build a wiki knowledge base via the Obsidian CLI",
   "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "keywords": [
+    "opencode",
+    "obsidian",
+    "obsidian-plugin",
+    "knowledge-base",
+    "wiki",
+    "llm"
+  ],
+  "license": "MIT",
   "scripts": {
+    "build": "bun build src/index.ts --outdir dist --format esm --external @opencode-ai/plugin",
+    "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
     "sync:skills": "bun run scripts/sync-upstream-skills.ts"
