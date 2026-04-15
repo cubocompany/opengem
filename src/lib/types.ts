@@ -21,3 +21,18 @@ export type CommandErrorCode =
   | "PATH_OUTSIDE_VAULT"
   | "COMMAND_NOT_ENABLED"
   | "BUNDLED_SKILLS_OUT_OF_SYNC"
+
+export type ResultEnvelope<TData = unknown> = {
+  schemaVersion: "1.0"
+  ok: boolean
+  command: string
+  args: Record<string, unknown>
+  requiredCapabilities: string[]
+  checkedCapabilities: string[]
+  data: TData
+  stdout: string
+  stderr: string
+  exitCode: number
+  hint: string | null
+  error: null | { code: CommandErrorCode; kind: string; message: string }
+}
