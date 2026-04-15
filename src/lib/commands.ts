@@ -42,6 +42,97 @@ export const TOOL_MANIFEST = {
     description: "Run environment diagnostics: CLI installed, app running, skills synced",
     futureSlashCommand: "obsidian.env.doctor",
   },
+
+  // v1.5 — vault queries
+  obsidian_backlinks: {
+    label: "List Backlinks",
+    description: "List all notes that link to a given note path",
+    futureSlashCommand: "obsidian.backlinks",
+  },
+  obsidian_tags: {
+    label: "List Tags",
+    description: "List all tags in the vault, or tags on a specific note",
+    futureSlashCommand: "obsidian.tags",
+  },
+  obsidian_tag_notes: {
+    label: "Notes by Tag",
+    description: "List all notes that use a specific tag",
+    futureSlashCommand: "obsidian.tag.notes",
+  },
+  obsidian_plugins: {
+    label: "List Plugins",
+    description: "List all installed Obsidian plugins",
+    futureSlashCommand: "obsidian.plugins",
+  },
+  obsidian_plugin_reload: {
+    label: "Reload Plugin",
+    description: "Reload an Obsidian plugin by ID without restarting the app",
+    futureSlashCommand: "obsidian.plugin.reload",
+  },
+
+  // v1.5 — dev tools
+  obsidian_dev_errors: {
+    label: "Dev: Recent Errors",
+    description: "Get recent JavaScript errors from the running Obsidian app",
+    futureSlashCommand: "obsidian.dev.errors",
+  },
+  obsidian_dev_console: {
+    label: "Dev: Console Capture",
+    description: "Start/stop debug capture or retrieve console output from the running app",
+    futureSlashCommand: "obsidian.dev.console",
+  },
+  obsidian_dev_screenshot: {
+    label: "Dev: Screenshot",
+    description: "Capture a screenshot of the running Obsidian app to a vault path (PNG)",
+    futureSlashCommand: "obsidian.dev.screenshot",
+  },
+  obsidian_dev_dom: {
+    label: "Dev: DOM Inspector",
+    description: "Inspect DOM elements by CSS selector (text, count, attribute, or computed CSS)",
+    futureSlashCommand: "obsidian.dev.dom",
+  },
+  obsidian_dev_css: {
+    label: "Dev: CSS Inspector",
+    description: "Inspect computed CSS properties by CSS selector",
+    futureSlashCommand: "obsidian.dev.css",
+  },
+
+  // v2.0 — wiki workflows
+  obsidian_wiki_ingest: {
+    label: "Wiki: Ingest Source",
+    description: "Copy a source document into raw/ and create or update its wiki/ page",
+    futureSlashCommand: "obsidian.wiki.ingest",
+  },
+  obsidian_wiki_update: {
+    label: "Wiki: Update Page",
+    description: "Create or overwrite a wiki/ knowledge page",
+    futureSlashCommand: "obsidian.wiki.update",
+  },
+  obsidian_wiki_refresh_index: {
+    label: "Wiki: Refresh Index",
+    description: "Rebuild wiki/INDEX.md with links to all wiki pages",
+    futureSlashCommand: "obsidian.wiki.refresh-index",
+  },
+  obsidian_wiki_search_cited: {
+    label: "Wiki: Search with Citations",
+    description: "Search wiki/ content and return results with source citations",
+    futureSlashCommand: "obsidian.wiki.search-cited",
+  },
+  obsidian_wiki_save_answer: {
+    label: "Wiki: Save Answer",
+    description: "Save a Q&A answer as a note in wiki/answers/",
+    futureSlashCommand: "obsidian.wiki.save-answer",
+  },
+  obsidian_wiki_lint: {
+    label: "Wiki: Health Check",
+    description: "Detect broken wikilinks, orphan pages, and missing index entries in wiki/",
+    futureSlashCommand: "obsidian.wiki.lint",
+  },
+  obsidian_eval: {
+    label: "Eval (opt-in)",
+    description: "Execute JavaScript in the Obsidian app context. Requires evalEnabled in plugin config.",
+    futureSlashCommand: "obsidian.eval",
+  },
 } as const
 
 export type ToolId = keyof typeof TOOL_MANIFEST

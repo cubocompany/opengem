@@ -267,6 +267,33 @@ test("plugin registers all MVP tools", async () => {
   expect(hooks.tool!.obsidian_env_doctor).toBeDefined()
 })
 
+test("plugin registers all v1.5 tools", async () => {
+  const hooks = await ObsidianPlugin({} as never, {})
+
+  expect(hooks.tool!.obsidian_backlinks).toBeDefined()
+  expect(hooks.tool!.obsidian_tags).toBeDefined()
+  expect(hooks.tool!.obsidian_tag_notes).toBeDefined()
+  expect(hooks.tool!.obsidian_plugins).toBeDefined()
+  expect(hooks.tool!.obsidian_plugin_reload).toBeDefined()
+  expect(hooks.tool!.obsidian_dev_errors).toBeDefined()
+  expect(hooks.tool!.obsidian_dev_console).toBeDefined()
+  expect(hooks.tool!.obsidian_dev_screenshot).toBeDefined()
+  expect(hooks.tool!.obsidian_dev_dom).toBeDefined()
+  expect(hooks.tool!.obsidian_dev_css).toBeDefined()
+})
+
+test("plugin registers all v2.0 tools", async () => {
+  const hooks = await ObsidianPlugin({} as never, {})
+
+  expect(hooks.tool!.obsidian_wiki_ingest).toBeDefined()
+  expect(hooks.tool!.obsidian_wiki_update).toBeDefined()
+  expect(hooks.tool!.obsidian_wiki_refresh_index).toBeDefined()
+  expect(hooks.tool!.obsidian_wiki_search_cited).toBeDefined()
+  expect(hooks.tool!.obsidian_wiki_save_answer).toBeDefined()
+  expect(hooks.tool!.obsidian_wiki_lint).toBeDefined()
+  expect(hooks.tool!.obsidian_eval).toBeDefined()
+})
+
 // --- degraded mode ---
 
 test("runReadTool returns CLI_NOT_FOUND when shell exits 127", async () => {

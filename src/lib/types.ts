@@ -1,6 +1,12 @@
 export type SkillsMode = "external" | "bundled"
 export type VaultAction = "read" | "write"
 
+export type WikiConfig = {
+  rawDir: string
+  wikiDir: string
+  schemaDir: string
+}
+
 export type PluginConfig = {
   defaultVault: string | null
   skills: {
@@ -8,6 +14,8 @@ export type PluginConfig = {
     externalPath: string | null
     syncDirName: string
   }
+  wiki: WikiConfig
+  evalEnabled: boolean
 }
 
 export type CommandErrorCode =
@@ -21,6 +29,8 @@ export type CommandErrorCode =
   | "PATH_OUTSIDE_VAULT"
   | "COMMAND_NOT_ENABLED"
   | "BUNDLED_SKILLS_OUT_OF_SYNC"
+  | "WIKI_PATH_CONFLICT"
+  | "EVAL_DISABLED"
 
 export type ResultEnvelope<TData = unknown> = {
   schemaVersion: "1.0"

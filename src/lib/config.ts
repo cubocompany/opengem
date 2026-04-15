@@ -8,6 +8,12 @@ export function resolvePluginConfig(input: Partial<PluginConfig>): PluginConfig 
       externalPath: input.skills?.externalPath ?? null,
       syncDirName: input.skills?.syncDirName ?? "obsidian-opencode-plugin-bundled",
     },
+    wiki: {
+      rawDir: input.wiki?.rawDir ?? "raw",
+      wikiDir: input.wiki?.wikiDir ?? "wiki",
+      schemaDir: input.wiki?.schemaDir ?? "schema",
+    },
+    evalEnabled: input.evalEnabled ?? false,
   }
 }
 
