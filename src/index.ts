@@ -153,7 +153,7 @@ export const ObsidianPlugin: Plugin = async (_input, options) => {
         async execute() {
           return JSON.stringify(await runEnvDoctor({
             detectCli: () => detectCli(async () => (await makeBunSpawnShell()(["obsidian", "--version"])).exitCode === 0),
-            detectApp: () => detectApp(async () => (await makeBunSpawnShell()(["obsidian", "status"])).exitCode === 0),
+            detectApp: () => detectApp(async () => (await makeBunSpawnShell()(["obsidian", "vault"])).exitCode === 0),
             detectSkills: async () => {
               const state = await detectSkillsState({ mode: config.skills.mode, explicitPath: config.skills.externalPath, homeDir: homedir(), syncDirName: config.skills.syncDirName })
               const check = await runSkillsCheck({ mode: state.mode, skillsPath: state.path, requiredSkills: ["obsidian-markdown", "obsidian-bases", "json-canvas", "obsidian-cli", "defuddle"] })
