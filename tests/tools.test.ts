@@ -6,7 +6,7 @@ import { runSearchTool } from "../src/tools/search"
 import { runCreateNoteTool } from "../src/tools/create-note"
 import { runAppendNoteTool } from "../src/tools/append-note"
 import { runSetPropertyTool } from "../src/tools/set-property"
-import { ObsidianPlugin } from "../src/index"
+import { OpenGemPlugin } from "../src/index"
 
 const okShell = (stdout = "") => async () => ({ exitCode: 0, stdout, stderr: "" })
 const failShell = (stderr = "error") => async () => ({ exitCode: 1, stdout: "", stderr })
@@ -255,7 +255,7 @@ test("runSetPropertyTool rejects missing target", async () => {
 // --- plugin registration ---
 
 test("plugin registers all MVP tools", async () => {
-  const hooks = await ObsidianPlugin({} as never, {})
+  const hooks = await OpenGemPlugin({} as never, {})
 
   expect(hooks.tool).toBeDefined()
   expect(hooks.tool!.obsidian_read).toBeDefined()
@@ -268,7 +268,7 @@ test("plugin registers all MVP tools", async () => {
 })
 
 test("plugin registers all v1.5 tools", async () => {
-  const hooks = await ObsidianPlugin({} as never, {})
+  const hooks = await OpenGemPlugin({} as never, {})
 
   expect(hooks.tool!.obsidian_backlinks).toBeDefined()
   expect(hooks.tool!.obsidian_tags).toBeDefined()
@@ -283,7 +283,7 @@ test("plugin registers all v1.5 tools", async () => {
 })
 
 test("plugin registers all v2.0 tools", async () => {
-  const hooks = await ObsidianPlugin({} as never, {})
+  const hooks = await OpenGemPlugin({} as never, {})
 
   expect(hooks.tool!.obsidian_wiki_ingest).toBeDefined()
   expect(hooks.tool!.obsidian_wiki_update).toBeDefined()

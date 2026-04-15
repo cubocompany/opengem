@@ -50,7 +50,7 @@ const {
   obsidian_eval,
 } = TOOL_MANIFEST
 
-export const ObsidianPlugin: Plugin = async (_input, options) => {
+export const OpenGemPlugin: Plugin = async (_input, options) => {
   const shell = makeBunSpawnShell()
   const config = resolvePluginConfig({
     defaultVault: (options?.defaultVault as string | undefined) ?? null,
@@ -365,4 +365,4 @@ export const ObsidianPlugin: Plugin = async (_input, options) => {
   }
 }
 
-export default ObsidianPlugin
+export default OpenGemPlugin

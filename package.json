@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-opencode-plugin",
+  "name": "opengem",
   "version": "0.1.0",
-  "description": "OpenCode plugin for Obsidian — read, write, search, and build a wiki knowledge base via the Obsidian CLI",
+  "description": "OpenGem — OpenCode plugin for Obsidian. Read, write, search, and build a compounding wiki knowledge base via the Obsidian CLI.",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
