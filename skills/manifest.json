@@ -1,0 +1,11 @@
+{
+  "upstreamRepo": "https://github.com/kepano/obsidian-skills",
+  "upstreamRef": "main",
+  "skills": [
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas",
+    "obsidian-cli",
+    "defuddle"
+  ]
+}
