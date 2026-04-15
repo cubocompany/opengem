@@ -25,13 +25,19 @@
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
-    "sync:skills": "bun run scripts/sync-upstream-skills.ts"
+    "sync:skills": "bun run scripts/sync-upstream-skills.ts",
+    "release": "semantic-release"
   },
   "dependencies": {
     "@opencode-ai/plugin": "1.4.6"
   },
   "devDependencies": {
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/github": "^12.0.6",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.0",
     "bun-types": "1.3.12",
+    "semantic-release": "^25.0.3",
     "typescript": "5.9.3"
   }
 }
