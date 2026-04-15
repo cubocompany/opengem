@@ -5,7 +5,9 @@
     "@semantic-release/release-notes-generator",
     ["@semantic-release/npm", {
       "npmPublish": true,
-      "provenance": true
+      "provenance": true,
+      "pkgRoot": ".",
+      "npmPublishArgs": "--access public"
     }],
     ["@semantic-release/github", {
       "successComment": false
