@@ -12,29 +12,21 @@ OpenGem connects [OpenCode](https://opencode.ai) to your [Obsidian](https://obsi
 
 ## Install
 
-Add OpenGem to your `opencode.json` (global at `~/.opencode/opencode.json` or per-project):
-
-```json
-{
-  "plugin": [
-    ["@cubocompany/opengem", {
-      "defaultVault": "My Vault"
-    }]
-  ]
-}
+```bash
+npx @cubocompany/opengem init
 ```
 
-Then ask OpenCode to initialize your wiki:
+The setup wizard will:
+- Check that the Obsidian CLI and app are available
+- Let you pick your vault
+- Write the config to `~/.opencode/opencode.json` (or your project folder)
+- Initialize the wiki folder structure inside your vault
 
-```
-Run obsidian_wiki_init
-```
+That's it — no JSON editing required.
 
-That's it. OpenGem will detect your vault automatically if you leave `defaultVault` out and only have one vault open in Obsidian.
+## Wiki structure
 
-## Init
-
-`obsidian_wiki_init` sets up the folder structure inside your vault:
+`opengem init` creates the following inside your vault:
 
 ```
 wiki/
@@ -46,7 +38,7 @@ raw/
   .keep          ← original sources go here, untouched
 ```
 
-Run it once per vault. Safe to re-run — existing files are skipped unless you pass `force: true`.
+Safe to re-run — existing files are skipped unless you pass `force: true` inside OpenCode.
 
 ## Usage
 
@@ -114,6 +106,20 @@ Vault resolution order:
 |---|---|
 | `obsidian_env_doctor` | Check CLI, app, vault, and skills status |
 
+## Manual config (optional)
+
+If you prefer to configure manually instead of running `init`, add to your `opencode.json`:
+
+```json
+{
+  "plugin": [
+    ["@cubocompany/opengem", {
+      "defaultVault": "My Vault"
+    }]
+  ]
+}
+```
+
 ## Development
 
 ```bash
@@ -122,6 +128,7 @@ cd opengem
 bun install
 bun test          # 121 tests
 bun run check     # TypeScript type-check
+bun run build     # builds dist/index.js (plugin) and dist/cli.js (init CLI)
 ```
 
 ## License
