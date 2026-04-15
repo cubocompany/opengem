@@ -7,6 +7,9 @@
   "exports": {
     ".": "./dist/index.js"
   },
+  "bin": {
+    "opengem": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "skills"
@@ -21,7 +24,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm --external @opencode-ai/plugin",
+    "build": "bun build src/index.ts --outdir dist --format esm --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
@@ -29,6 +32,7 @@
     "release": "semantic-release"
   },
   "dependencies": {
+    "@clack/prompts": "^1.2.0",
     "@opencode-ai/plugin": "1.4.6"
   },
   "devDependencies": {
