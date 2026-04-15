@@ -30,6 +30,7 @@ import { runDevDomTool } from "./tools/dev-dom"
 import { runDevCssTool } from "./tools/dev-css"
 
 // v2.0 tools
+import { runWikiInitTool } from "./tools/wiki-init"
 import { runWikiIngestTool } from "./tools/wiki-ingest"
 import { runWikiUpdateTool } from "./tools/wiki-update"
 import { runWikiRefreshIndexTool } from "./tools/wiki-refresh-index"
@@ -44,7 +45,7 @@ const {
   obsidian_backlinks, obsidian_tags, obsidian_tag_notes, obsidian_plugins,
   obsidian_plugin_reload, obsidian_dev_errors, obsidian_dev_console,
   obsidian_dev_screenshot, obsidian_dev_dom, obsidian_dev_css,
-  obsidian_wiki_ingest, obsidian_wiki_update, obsidian_wiki_refresh_index,
+  obsidian_wiki_init, obsidian_wiki_ingest, obsidian_wiki_update, obsidian_wiki_refresh_index,
   obsidian_wiki_search_cited, obsidian_wiki_save_answer, obsidian_wiki_lint,
   obsidian_eval,
 } = TOOL_MANIFEST
@@ -274,6 +275,17 @@ export const ObsidianPlugin: Plugin = async (_input, options) => {
       }),
 
       // ── v2.0 ────────────────────────────────────────────────────────────
+      obsidian_wiki_init: tool({
+        description: obsidian_wiki_init.description,
+        args: {
+          vault: tool.schema.string().optional().describe("Target vault (required if defaultVault is not configured)"),
+          force: tool.schema.boolean().optional().describe("Overwrite SCHEMA.md and INDEX.md if they already exist"),
+        },
+        async execute(args) {
+          return JSON.stringify(await runWikiInitTool({ shell, input: args, defaultVault: config.defaultVault, activeVault: null, wikiPaths }))
+        },
+      }),
+
       obsidian_wiki_ingest: tool({
         description: obsidian_wiki_ingest.description,
         args: {

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { runWikiInitTool } from "../src/tools/wiki-init"
 import { runWikiIngestTool } from "../src/tools/wiki-ingest"
 import { runWikiUpdateTool } from "../src/tools/wiki-update"
 import { runWikiRefreshIndexTool } from "../src/tools/wiki-refresh-index"
@@ -10,6 +11,49 @@ import { resolveWikiPaths } from "../src/lib/wiki"
 
 const okShell = (stdout = "") => async () => ({ exitCode: 0, stdout, stderr: "" })
 const wikiPaths = resolveWikiPaths({ vault: "Main" })
+
+// --- wiki-init ---
+
+test("runWikiInitTool creates schema, index, log, and raw keep", async () => {
+  const created: string[] = []
+  const shell = async (cmd: string[]) => {
+    const name = cmd.find(a => a.startsWith("name="))?.replace("name=", "") ?? ""
+    created.push(name)
+    return { exitCode: 0, stdout: "", stderr: "" }
+  }
+  const result = await runWikiInitTool({ shell, input: { vault: "Main" }, defaultVault: "Main", activeVault: null, wikiPaths })
+  expect(result.ok).toBe(true)
+  expect(result.data!.created).toContain("schema/SCHEMA.md")
+  expect(result.data!.created).toContain("wiki/INDEX.md")
+  expect(result.data!.created).toContain("wiki/LOG.md")
+  expect(result.data!.vault).toBe("Main")
+})
+
+test("runWikiInitTool requires vault", async () => {
+  const result = await runWikiInitTool({ shell: okShell(), input: {}, defaultVault: null, activeVault: "Daily", wikiPaths })
+  expect(result.ok).toBe(false)
+  expect(result.error?.code).toBe("VAULT_REQUIRED")
+})
+
+test("runWikiInitTool skips existing files without force", async () => {
+  const shell = async (cmd: string[]) => {
+    const isSchema = cmd.some(a => a.includes("SCHEMA.md"))
+    return isSchema ? { exitCode: 1, stdout: "", stderr: "already exists" } : { exitCode: 0, stdout: "", stderr: "" }
+  }
+  const result = await runWikiInitTool({ shell, input: { vault: "Main" }, defaultVault: "Main", activeVault: null, wikiPaths })
+  expect(result.ok).toBe(true)
+  expect(result.data!.skipped).toContain("schema/SCHEMA.md")
+})
+
+test("runWikiInitTool overwrites schema with force:true", async () => {
+  let capturedOverwrite = false
+  const shell = async (cmd: string[]) => {
+    if (cmd.some(a => a.includes("SCHEMA.md")) && cmd.includes("overwrite")) capturedOverwrite = true
+    return { exitCode: 0, stdout: "", stderr: "" }
+  }
+  await runWikiInitTool({ shell, input: { vault: "Main", force: true }, defaultVault: "Main", activeVault: null, wikiPaths })
+  expect(capturedOverwrite).toBe(true)
+})
 
 // --- wiki-ingest ---
 

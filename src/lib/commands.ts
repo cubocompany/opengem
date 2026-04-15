@@ -98,6 +98,11 @@ export const TOOL_MANIFEST = {
   },
 
   // v2.0 — wiki workflows
+  obsidian_wiki_init: {
+    label: "Wiki: Initialize",
+    description: "Set up the wiki folder structure (raw/, wiki/, schema/) with SCHEMA.md, INDEX.md, and LOG.md. Run once per vault to get started.",
+    futureSlashCommand: "obsidian.wiki.init",
+  },
   obsidian_wiki_ingest: {
     label: "Wiki: Ingest Source",
     description: "Copy a source document into raw/ and create or update its wiki/ page",
