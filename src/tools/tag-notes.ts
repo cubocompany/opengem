@@ -11,7 +11,7 @@ export async function runTagNotesTool(args: {
     return errorResult("INVALID_ARGS", "name is required", "Provide a tag name", "obsidian_tag_notes", args.input, ["cli", "app"], ["cli", "app"])
   }
 
-  const result = await executeObsidianCli(args.shell, "tag", args.input, {
+  const result = await executeObsidianCli(args.shell, "tag", { ...args.input, verbose: true }, {
     requiredCapabilities: ["cli", "app"],
     checkedCapabilities: ["cli", "app"],
   })

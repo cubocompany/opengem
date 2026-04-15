@@ -24,14 +24,14 @@ export async function runWikiIngestTool(args: {
 
   const rawResult = await executeObsidianCli(
     args.shell, "create",
-    { name: rawName, content: args.input.sourceContent, vault, silent: true, overwrite: false },
+    { name: rawName, content: args.input.sourceContent, vault, overwrite: false },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
   if (!rawResult.ok) return { ...rawResult, data: null }
 
   const wikiResult = await executeObsidianCli(
     args.shell, "create",
-    { name: wikiName, content: args.input.wikiContent, vault, silent: true, overwrite: true },
+    { name: wikiName, content: args.input.wikiContent, vault, overwrite: true },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 

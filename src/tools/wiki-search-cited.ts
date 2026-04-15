@@ -19,8 +19,7 @@ export async function runWikiSearchCitedTool(args: {
   const config = resolvePluginConfig({ defaultVault: args.defaultVault })
   const vault = resolveVault({ action: "read", inputVault: args.input.vault ?? null, activeVault: args.activeVault, config })
 
-  const scopedQuery = `path:${args.wikiPaths.wiki} ${args.input.query}`
-  const cliArgs: Record<string, unknown> = { query: scopedQuery }
+  const cliArgs: Record<string, unknown> = { query: args.input.query, path: args.wikiPaths.wiki }
   if (args.input.limit) cliArgs["limit"] = args.input.limit
   if (vault) cliArgs["vault"] = vault
 

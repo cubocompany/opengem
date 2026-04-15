@@ -23,8 +23,8 @@ export async function runWikiLintTool(args: {
   const vault = resolveVault({ action: "read", inputVault: args.input.vault ?? null, activeVault: args.activeVault, config })
 
   const searchResult = await executeObsidianCli(
-    args.shell, "search",
-    { query: `path:${args.wikiPaths.wiki}`, ...(vault ? { vault } : {}) },
+    args.shell, "files",
+    { folder: args.wikiPaths.wiki, ext: "md", ...(vault ? { vault } : {}) },
     { requiredCapabilities: ["cli", "app"], checkedCapabilities: ["cli", "app"] },
   )
 

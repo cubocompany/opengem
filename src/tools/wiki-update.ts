@@ -26,7 +26,7 @@ export async function runWikiUpdateTool(args: {
   const path = `${args.wikiPaths.wiki}/${args.input.pageName}`
   const result = await executeObsidianCli(
     args.shell, "create",
-    { name: path, content: args.input.content, vault, silent: true, overwrite: true },
+    { name: path, content: args.input.content, vault, overwrite: true },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 

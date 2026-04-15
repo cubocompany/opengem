@@ -165,7 +165,7 @@ test("runWikiSearchCitedTool scopes query to wiki/ path", async () => {
   expect(result.ok).toBe(true)
   expect(result.data!.query).toBe("TypeScript")
   expect(result.data!.results).toContain("wiki/a.md")
-  expect(captured.join(" ")).toContain("path:wiki")
+  expect(captured.join(" ")).toContain("path=wiki")
   expect(captured.join(" ")).toContain("TypeScript")
 })
 

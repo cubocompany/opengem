@@ -34,7 +34,7 @@ export async function runWikiSaveAnswerTool(args: {
 
   const result = await executeObsidianCli(
     args.shell, "create",
-    { name: path, content, vault, silent: true, overwrite: false },
+    { name: path, content, vault, overwrite: false },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 

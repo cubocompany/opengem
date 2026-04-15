@@ -20,8 +20,8 @@ export async function runWikiRefreshIndexTool(args: {
   }
 
   const searchResult = await executeObsidianCli(
-    args.shell, "search",
-    { query: `path:${args.wikiPaths.wiki}`, vault },
+    args.shell, "files",
+    { folder: args.wikiPaths.wiki, ext: "md", vault },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
   if (!searchResult.ok) return { ...searchResult, data: null }
@@ -31,7 +31,7 @@ export async function runWikiRefreshIndexTool(args: {
 
   const writeResult = await executeObsidianCli(
     args.shell, "create",
-    { name: args.wikiPaths.index, content: indexContent, vault, silent: true, overwrite: true },
+    { name: args.wikiPaths.index, content: indexContent, vault, overwrite: true },
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 
