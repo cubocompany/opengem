@@ -1,3 +1,10 @@
+# [0.7.0](https://github.com/cubocompany/opengem/compare/v0.6.0...v0.7.0) (2026-04-16)
+
+
+### Features
+
+* **graph:** add opengem-out/ output, .opengemignore, rename slash commands ([cf5ac7f](https://github.com/cubocompany/opengem/commit/cf5ac7f840e6e6d3c8a249cadecbd7681fc9f175))
+
 # [0.6.0](https://github.com/cubocompany/opengem/compare/v0.5.0...v0.6.0) (2026-04-16)
 
 
