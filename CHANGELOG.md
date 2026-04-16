@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/cubocompany/opengem/compare/v0.4.0...v0.4.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph:** auto-detect vault path from obsidian CLI, add slash commands via config hook ([c3e8388](https://github.com/cubocompany/opengem/commit/c3e838891bc5080bab17283086de3c2502210a7c))
+
 # [0.4.0](https://github.com/cubocompany/opengem/compare/v0.3.0...v0.4.0) (2026-04-16)
 
 
