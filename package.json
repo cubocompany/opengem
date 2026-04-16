@@ -1,6 +1,6 @@
 {
   "name": "@cubocompany/opengem",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "OpenGem — OpenCode plugin for Obsidian. Read, write, search, and build a compounding wiki knowledge base via the Obsidian CLI.",
   "type": "module",
   "main": "dist/index.js",

@@ -1,3 +1,11 @@
+# [0.6.0](https://github.com/cubocompany/opengem/compare/v0.5.0...v0.6.0) (2026-04-16)
+
+
+### Features
+
+* **cli:** add watch mode, hooks, install, and MCP server ([8b79ef0](https://github.com/cubocompany/opengem/commit/8b79ef001da2a45721e3f6aa74b082b153b9f040))
+* **graph:** add markdown and PDF as graph input sources ([952daaf](https://github.com/cubocompany/opengem/commit/952daaf5d88e60d70bb2124e0154c0af7f0dc782))
+
 # [0.5.0](https://github.com/cubocompany/opengem/compare/v0.4.1...v0.5.0) (2026-04-16)
 
 
