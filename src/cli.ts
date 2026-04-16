@@ -18,26 +18,30 @@ function cliVersion(): string | null {
   return r.stdout.trim().split("\n")[0]?.trim() ?? null
 }
 
-function appRunning(): boolean {
-  return obsidian(["vault"]).exitCode === 0
-}
+type VaultStatus = { running: boolean; active: string | null; all: string[] }
 
-function activeVault(): string | null {
-  const r = obsidian(["vault"])
-  if (r.exitCode !== 0) return null
-  const line = r.stdout.trim().split("\n").find(l => l.startsWith("name"))
-  return line ? line.split(/\s+/).slice(1).join(" ").trim() : null
-}
+/** Single call to get all vault info — avoids multiple obsidian invocations. */
+function getVaultStatus(): VaultStatus {
+  const vaultResult = obsidian(["vault"])
+  const running = vaultResult.exitCode === 0
 
-function listVaults(): string[] {
-  const r = obsidian(["vaults"])
-  if (r.exitCode !== 0) return []
-  return r.stdout
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map(line => line.split("\t")[0].trim())
-    .filter(Boolean)
+  let active: string | null = null
+  if (running) {
+    const line = vaultResult.stdout.trim().split("\n").find(l => l.startsWith("name"))
+    active = line ? line.split(/\s+/).slice(1).join(" ").trim() : null
+  }
+
+  const vaultsResult = obsidian(["vaults"])
+  const all = vaultsResult.exitCode === 0
+    ? vaultsResult.stdout
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(line => line.split("\t")[0].trim())
+        .filter(Boolean)
+    : []
+
+  return { running, active, all }
 }
 
 // ── Wiki init helpers ─────────────────────────────────────────────────────────
@@ -139,19 +143,28 @@ async function main() {
   }
   s.stop(`Obsidian CLI found (${version})`)
 
-  // 2. Check app
+  // 2. Check app — wait for user to open Obsidian instead of exiting
   s.start("Checking Obsidian app...")
-  if (!appRunning()) {
-    s.stop("Obsidian app is not running")
-    p.note("Open Obsidian and make sure at least one vault is loaded.", "Missing requirement")
-    p.outro("Setup incomplete. Run `npx @cubocompany/opengem init` again after opening Obsidian.")
-    process.exit(1)
-  }
-  s.stop("Obsidian app is running")
+  let vaultStatus = getVaultStatus()
+  s.stop(vaultStatus.running ? "Obsidian app is running" : "Obsidian app is not running")
 
-  // 3. Pick vault
-  const active = activeVault()
-  const all = listVaults()
+  if (!vaultStatus.running) {
+    p.note("Open Obsidian and load a vault, then press Enter to continue.", "Action required")
+    const proceed = await p.confirm({ message: "Obsidian is open and a vault is loaded?" })
+    if (p.isCancel(proceed) || !proceed) { p.cancel("Setup cancelled."); process.exit(0) }
+
+    s.start("Re-checking Obsidian app...")
+    vaultStatus = getVaultStatus()
+    if (!vaultStatus.running) {
+      s.stop("Obsidian still not detected")
+      p.outro("Setup incomplete. Run `npx @cubocompany/opengem init` again after opening Obsidian.")
+      process.exit(1)
+    }
+    s.stop("Obsidian app is running")
+  }
+
+  // 3. Pick vault — reuse already-fetched vault status (no extra obsidian calls)
+  const { active, all } = vaultStatus
 
   if (all.length === 0 && !active) {
     p.outro("No vaults found. Open a vault in Obsidian and run init again.")
@@ -183,13 +196,13 @@ async function main() {
   }
 
   // 4. Pick config location
-  const globalPath = join(homedir(), ".opencode", "opencode.json")
+  const globalPath = join(homedir(), ".config", "opencode", "opencode.json")
   const localPath = resolve("opencode.json")
 
   const configChoice = await p.select({
     message: "Save config to:",
     options: [
-      { value: "global", label: "Global", hint: `~/.opencode/opencode.json — works in any project` },
+      { value: "global", label: "Global", hint: `~/.config/opencode/opencode.json — works in any project` },
       { value: "local", label: "This project", hint: `${localPath}` },
     ],
   })
