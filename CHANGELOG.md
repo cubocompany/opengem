@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/cubocompany/opengem/compare/v0.7.0...v0.7.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph:** add .jsx support and use tree-sitter-tsx.wasm for .tsx files ([0885dac](https://github.com/cubocompany/opengem/commit/0885dacb89e0b38eb50e627a0de0593e8ce50e5d))
+
 # [0.7.0](https://github.com/cubocompany/opengem/compare/v0.6.0...v0.7.0) (2026-04-16)
 
 
