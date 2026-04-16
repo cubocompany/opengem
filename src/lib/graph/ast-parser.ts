@@ -51,7 +51,7 @@ let initPromise: Promise<void> | null = null
 async function ensureInit(): Promise<void> {
   if (!initPromise) {
     initPromise = Parser.init({
-      locateFile: () => join(dirname(_require.resolve("web-tree-sitter/package.json")), "web-tree-sitter.wasm"),
+      locateFile: () => join(dirname(_require.resolve("web-tree-sitter")), "web-tree-sitter.wasm"),
     })
   }
   return initPromise
