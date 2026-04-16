@@ -1,3 +1,11 @@
+## [0.7.4](https://github.com/cubocompany/opengem/compare/v0.7.3...v0.7.4) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph-index:** skip re-indexing when local state exists, fix vault resolution ([f96c6fc](https://github.com/cubocompany/opengem/commit/f96c6fc51dfd5576dcc05d41abf6859db7b9c691))
+* restore graph-index to use local state and fix vault resolution ([7c9cca1](https://github.com/cubocompany/opengem/commit/7c9cca139bd6b6534c9eae6f4904d739feca7c9e))
+
 ## [0.7.3](https://github.com/cubocompany/opengem/compare/v0.7.2...v0.7.3) (2026-04-16)
 
 
