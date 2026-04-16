@@ -28,7 +28,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
+    "build": "bun build src/index.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
@@ -37,7 +37,14 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",
-    "@opencode-ai/plugin": "1.4.6"
+    "@opencode-ai/plugin": "1.4.6",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "graphology-shortest-path": "^2.1.0",
+    "graphology-traversal": "^0.3.1",
+    "graphology-types": "^0.24.8",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.26.8"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

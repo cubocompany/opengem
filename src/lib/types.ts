@@ -7,6 +7,10 @@ export type WikiConfig = {
   schemaDir: string
 }
 
+export type GraphConfig = {
+  graphDir: string
+}
+
 export type PluginConfig = {
   defaultVault: string | null
   skills: {
@@ -15,6 +19,7 @@ export type PluginConfig = {
     syncDirName: string
   }
   wiki: WikiConfig
+  graph: GraphConfig
   evalEnabled: boolean
 }
 
@@ -31,6 +36,9 @@ export type CommandErrorCode =
   | "BUNDLED_SKILLS_OUT_OF_SYNC"
   | "WIKI_PATH_CONFLICT"
   | "EVAL_DISABLED"
+  | "GRAPH_NOT_INDEXED"
+  | "GRAPH_NODE_NOT_FOUND"
+  | "GRAPH_PATH_NOT_FOUND"
 
 export type ResultEnvelope<TData = unknown> = {
   schemaVersion: "1.0"

@@ -138,6 +138,28 @@ export const TOOL_MANIFEST = {
     description: "Execute JavaScript in the Obsidian app context. Requires evalEnabled in plugin config.",
     futureSlashCommand: "obsidian.eval",
   },
+
+  // v3.0 — code graph
+  obsidian_graph_index: {
+    label: "Graph: Index Codebase",
+    description: "Parse a project directory with tree-sitter, build a knowledge graph, and write one Obsidian note per symbol (function, class, module). Uses SHA-256 caching — only changed files are re-parsed.",
+    futureSlashCommand: "obsidian.graph.index",
+  },
+  obsidian_graph_neighbors: {
+    label: "Graph: Node Neighbors",
+    description: "Return the direct neighbors of a graph node (by nodeId or symbol name), grouped by edge type (calls, imports, contains, inherits).",
+    futureSlashCommand: "obsidian.graph.neighbors",
+  },
+  obsidian_graph_path: {
+    label: "Graph: Shortest Path",
+    description: "Find the shortest path between two symbols in the code graph. Accepts node IDs or symbol names.",
+    futureSlashCommand: "obsidian.graph.path",
+  },
+  obsidian_graph_query: {
+    label: "Graph: Query",
+    description: "Search graph nodes by name, file, kind (function/class/module), or community ID. Returns results sorted by edge count (most connected first).",
+    futureSlashCommand: "obsidian.graph.query",
+  },
 } as const
 
 export type ToolId = keyof typeof TOOL_MANIFEST

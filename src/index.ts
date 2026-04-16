@@ -39,6 +39,12 @@ import { runWikiSaveAnswerTool } from "./tools/wiki-save-answer"
 import { runWikiLintTool } from "./tools/wiki-lint"
 import { runEvalTool } from "./tools/eval"
 
+// v3.0 tools
+import { runGraphIndexTool } from "./tools/graph-index"
+import { runGraphNeighborsTool } from "./tools/graph-neighbors"
+import { runGraphPathTool } from "./tools/graph-path"
+import { runGraphQueryTool } from "./tools/graph-query"
+
 const {
   obsidian_read, obsidian_search, obsidian_create_note, obsidian_append_note,
   obsidian_set_property, obsidian_skills_check, obsidian_env_doctor,
@@ -48,6 +54,7 @@ const {
   obsidian_wiki_init, obsidian_wiki_ingest, obsidian_wiki_update, obsidian_wiki_refresh_index,
   obsidian_wiki_search_cited, obsidian_wiki_save_answer, obsidian_wiki_lint,
   obsidian_eval,
+  obsidian_graph_index, obsidian_graph_neighbors, obsidian_graph_path, obsidian_graph_query,
 } = TOOL_MANIFEST
 
 export const OpenGemPlugin: Plugin = async (_input, options) => {
@@ -58,6 +65,9 @@ export const OpenGemPlugin: Plugin = async (_input, options) => {
       rawDir: (options?.wikiRawDir as string | undefined) ?? "raw",
       wikiDir: (options?.wikiDir as string | undefined) ?? "wiki",
       schemaDir: (options?.wikiSchemaDir as string | undefined) ?? "schema",
+    },
+    graph: {
+      graphDir: (options?.graphDir as string | undefined) ?? "graph",
     },
     evalEnabled: (options?.evalEnabled as boolean | undefined) ?? false,
   })
@@ -359,6 +369,68 @@ export const OpenGemPlugin: Plugin = async (_input, options) => {
         },
         async execute(args) {
           return JSON.stringify(await runEvalTool({ shell, input: args, evalEnabled: config.evalEnabled }))
+        },
+      }),
+
+      // ── v3.0 — code graph ─────────────────────────────────────────────────
+      obsidian_graph_index: tool({
+        description: obsidian_graph_index.description,
+        args: {
+          rootDir: tool.schema.string().describe("Absolute path to the project directory to index"),
+          vault: tool.schema.string().optional().describe("Vault name (defaults to configured defaultVault)"),
+          vaultPath: tool.schema.string().optional().describe("Absolute filesystem path to the vault (required for state persistence)"),
+          graphDir: tool.schema.string().optional().describe("Vault-relative folder for graph notes (default: graph)"),
+          languages: tool.schema.array(tool.schema.string()).optional().describe("Languages to index: typescript, javascript, python (default: all)"),
+          force: tool.schema.boolean().optional().describe("Re-parse all files ignoring cache"),
+        },
+        async execute(args) {
+          return JSON.stringify(await runGraphIndexTool({ shell, input: args, defaultVault: config.defaultVault, activeVault: null, vaultPath: null }))
+        },
+      }),
+
+      obsidian_graph_neighbors: tool({
+        description: obsidian_graph_neighbors.description,
+        args: {
+          nodeId: tool.schema.string().optional().describe("Exact node ID (e.g. src/lib/cli.ts#executeObsidianCli)"),
+          name: tool.schema.string().optional().describe("Symbol name (fuzzy lookup)"),
+          vault: tool.schema.string().optional(),
+          vaultPath: tool.schema.string().optional().describe("Absolute filesystem path to the vault"),
+          graphDir: tool.schema.string().optional(),
+          edgeKinds: tool.schema.array(tool.schema.string()).optional().describe("Filter by edge type: calls, imports, contains, inherits, defines"),
+        },
+        async execute(args) {
+          return JSON.stringify(await runGraphNeighborsTool({ shell, input: args as Parameters<typeof runGraphNeighborsTool>[0]["input"], defaultVault: config.defaultVault, activeVault: null, vaultPath: null }))
+        },
+      }),
+
+      obsidian_graph_path: tool({
+        description: obsidian_graph_path.description,
+        args: {
+          source: tool.schema.string().describe("Source node ID or symbol name"),
+          target: tool.schema.string().describe("Target node ID or symbol name"),
+          vault: tool.schema.string().optional(),
+          vaultPath: tool.schema.string().optional().describe("Absolute filesystem path to the vault"),
+          graphDir: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          return JSON.stringify(await runGraphPathTool({ shell, input: args, defaultVault: config.defaultVault, activeVault: null, vaultPath: null }))
+        },
+      }),
+
+      obsidian_graph_query: tool({
+        description: obsidian_graph_query.description,
+        args: {
+          query: tool.schema.string().describe("Text to match against symbol name or file path"),
+          kind: tool.schema.string().optional().describe("Filter by node kind: function, class, module, method, variable"),
+          community: tool.schema.number().optional().describe("Filter by community ID"),
+          file: tool.schema.string().optional().describe("Filter to nodes in a specific file (substring match)"),
+          limit: tool.schema.number().optional().describe("Maximum results (default 20)"),
+          vault: tool.schema.string().optional(),
+          vaultPath: tool.schema.string().optional().describe("Absolute filesystem path to the vault"),
+          graphDir: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          return JSON.stringify(await runGraphQueryTool({ shell, input: args as Parameters<typeof runGraphQueryTool>[0]["input"], defaultVault: config.defaultVault, activeVault: null, vaultPath: null }))
         },
       }),
     },

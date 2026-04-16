@@ -13,6 +13,9 @@ export function resolvePluginConfig(input: Partial<PluginConfig>): PluginConfig 
       wikiDir: input.wiki?.wikiDir ?? "wiki",
       schemaDir: input.wiki?.schemaDir ?? "schema",
     },
+    graph: {
+      graphDir: input.graph?.graphDir ?? "graph",
+    },
     evalEnabled: input.evalEnabled ?? false,
   }
 }
