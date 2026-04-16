@@ -5,8 +5,8 @@ import { LANGUAGE_CONFIGS, extensionToLanguage } from "./language-configs"
 
 // ── Core language types ───────────────────────────────────────────────────────
 
-/** Languages with dedicated extractors (JS/TS/Python) */
-export type DedicatedLanguage = "javascript" | "typescript" | "python"
+/** Languages with dedicated extractors (JS/TS/JSX/TSX/Python) */
+export type DedicatedLanguage = "javascript" | "typescript" | "tsx" | "python"
 
 /** All languages supported by the generic extractor */
 export type GenericLanguage = keyof typeof LANGUAGE_CONFIGS
@@ -14,7 +14,7 @@ export type GenericLanguage = keyof typeof LANGUAGE_CONFIGS
 /** Union of all supported languages */
 export type SupportedLanguage = DedicatedLanguage | GenericLanguage
 
-const DEDICATED: readonly DedicatedLanguage[] = ["javascript", "typescript", "python"]
+const DEDICATED: readonly DedicatedLanguage[] = ["javascript", "typescript", "tsx", "python"]
 
 // ── WASM path map ─────────────────────────────────────────────────────────────
 
@@ -26,6 +26,7 @@ const WASM_NAME: Record<string, string> = {
   // Dedicated
   javascript: "javascript",
   typescript: "typescript",
+  tsx:        "tsx",
   python:     "python",
   // Generic — key must match LANGUAGE_CONFIGS key and the wasm filename
   go:         "go",
@@ -80,8 +81,9 @@ export function detectLanguage(file: string): SupportedLanguage | null {
   const ext = "." + (file.split(".").pop()?.toLowerCase() ?? "")
 
   // Dedicated extractors first (overlap prevention)
-  if (ext === ".ts" || ext === ".tsx") return "typescript"
-  if (ext === ".js" || ext === ".mjs" || ext === ".cjs") return "javascript"
+  if (ext === ".ts") return "typescript"
+  if (ext === ".tsx") return "tsx"
+  if (ext === ".js" || ext === ".jsx" || ext === ".mjs" || ext === ".cjs") return "javascript"
   if (ext === ".py") return "python"
 
   // Generic extractor languages

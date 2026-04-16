@@ -49,7 +49,7 @@ export async function buildGraph(args: {
 }): Promise<BuildResult> {
   const isIgnored = loadIgnoreRules(args.rootDir)
   const allFiles = collectFiles(args.rootDir, args.rootDir, isIgnored)
-  const defaultLangs = ["typescript", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS), "markdown", "pdf"]
+  const defaultLangs = ["typescript", "tsx", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS), "markdown", "pdf"]
   const allowedLangs = new Set(args.languages ?? defaultLangs)
 
   const existingHashes = args.existing?.fileHashes ?? {}

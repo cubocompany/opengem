@@ -16,7 +16,7 @@ type Extracted = { nodes: AstNode[]; edges: AstEdge[] }
 export function extractJsTs(
   tree: Tree,
   file: string,
-  language: "javascript" | "typescript",
+  language: "javascript" | "typescript" | "tsx",
 ): Extracted {
   const nodes: AstNode[] = []
   const edges: AstEdge[] = []
