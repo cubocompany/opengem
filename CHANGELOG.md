@@ -1,3 +1,10 @@
+## [0.7.2](https://github.com/cubocompany/opengem/compare/v0.7.1...v0.7.2) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph:** fix web-tree-sitter WASM path and add jsx/tsx support ([93b327f](https://github.com/cubocompany/opengem/commit/93b327fdd2c79901f4033be642fe20df4769eded))
+
 ## [0.7.1](https://github.com/cubocompany/opengem/compare/v0.7.0...v0.7.1) (2026-04-16)
 
 
