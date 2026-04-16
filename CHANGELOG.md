@@ -1,3 +1,10 @@
+## [0.7.3](https://github.com/cubocompany/opengem/compare/v0.7.2...v0.7.3) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph:** replace Bun.file/Bun.write with Node.js fs APIs ([2af8545](https://github.com/cubocompany/opengem/commit/2af854524142c86f9d9d30ab805b0843c7b1b310))
+
 ## [0.7.2](https://github.com/cubocompany/opengem/compare/v0.7.1...v0.7.2) (2026-04-16)
 
 
