@@ -1,3 +1,15 @@
+# [0.5.0](https://github.com/cubocompany/opengem/compare/v0.4.1...v0.5.0) (2026-04-16)
+
+
+### Bug Fixes
+
+* **deps:** replace tree-sitter-wasms with @repomix/tree-sitter-wasms, upgrade web-tree-sitter to 0.26.8 ([5951e9b](https://github.com/cubocompany/opengem/commit/5951e9b22996ff8dbd0a589b257a0282f8439ea7))
+
+
+### Features
+
+* **graph:** expand to 15 languages and add opengem CLI subcommands ([c48aad1](https://github.com/cubocompany/opengem/commit/c48aad1078310712f6e91dbc091b894731132f39))
+
 ## [0.4.1](https://github.com/cubocompany/opengem/compare/v0.4.0...v0.4.1) (2026-04-16)
 
 
