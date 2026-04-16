@@ -1,6 +1,6 @@
-import { mkdirSync, existsSync, readFileSync } from "node:fs"
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join, dirname } from "node:path"
-import { executeObsidianCli, errorResult } from "../lib/cli"
+import { errorResult } from "../lib/cli"
 import { resolvePluginConfig, resolveVault } from "../lib/config"
 import { buildGraph } from "../lib/graph/graph-builder"
 import { buildGraphologyFromState, loadGraphState, saveGraphState, saveGraphSummary } from "../lib/graph/graph-store"
@@ -143,35 +143,26 @@ export async function runGraphIndexTool(args: {
     }
   }
 
-  // Write notes in parallel chunks of 20
-  const CHUNK = 20
-  for (let i = 0; i < nodes.length; i += CHUNK) {
-    const chunk = nodes.slice(i, i + CHUNK)
-    await Promise.all(chunk.map(node => {
-      const content = renderNodeNote({
-        node,
-        community: communities[node.id] ?? 0,
-        outgoing: outgoingByNode.get(node.id) ?? [],
-        incoming: incomingByNode.get(node.id) ?? [],
-        nodeIndex,
-        graphDir: graphPaths.graphDir,
-      })
-      const noteName = nodeIdToNoteName(node.id, graphPaths.graphDir)
-      return executeObsidianCli(
-        args.shell, "create",
-        { name: noteName, content, vault, overwrite: true },
-        { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
-      )
-    }))
+  // Write notes directly to vault filesystem — far faster than spawning one CLI subprocess per note
+  const graphFsDir = join(vaultPath, graphPaths.graphDir)
+  if (!existsSync(graphFsDir)) mkdirSync(graphFsDir, { recursive: true })
+
+  for (const node of nodes) {
+    const content = renderNodeNote({
+      node,
+      community: communities[node.id] ?? 0,
+      outgoing: outgoingByNode.get(node.id) ?? [],
+      incoming: incomingByNode.get(node.id) ?? [],
+      nodeIndex,
+      graphDir: graphPaths.graphDir,
+    })
+    const noteName = nodeIdToNoteName(node.id, graphPaths.graphDir)
+    writeFileSync(join(vaultPath, noteName), content, "utf8")
   }
 
   // Write graph index note
   const indexContent = renderGraphIndex(graphPaths.graphDir, nodes.length, communityCount, new Date().toISOString())
-  await executeObsidianCli(
-    args.shell, "create",
-    { name: `${graphPaths.graphDir}/INDEX.md`, content: indexContent, vault, overwrite: true },
-    { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
-  )
+  writeFileSync(join(vaultPath, graphPaths.graphDir, "INDEX.md"), indexContent, "utf8")
 
   const indexedAt = new Date().toISOString()
 
