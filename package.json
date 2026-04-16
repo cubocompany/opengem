@@ -6,10 +6,12 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
-    "./tui": "./dist/tui.js"
+    "./tui": "./dist/tui.js",
+    "./mcp": "./dist/mcp.js"
   },
   "bin": {
-    "opengem": "./dist/cli.js"
+    "opengem": "./dist/cli.js",
+    "opengem-mcp": "./dist/mcp.js"
   },
   "files": [
     "dist",
@@ -29,7 +31,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm --target node --external @opencode-ai/plugin --external unpdf && bun build src/tui.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
+    "build": "bun build src/index.ts --outdir dist --format esm --target node --external @opencode-ai/plugin --external unpdf && bun build src/tui.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node && bun build src/mcp.ts --outdir dist --format esm --target node --external unpdf",
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
@@ -38,8 +40,10 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@opencode-ai/plugin": "1.4.6",
     "@repomix/tree-sitter-wasms": "^0.1.16",
+    "chokidar": "^5.0.0",
     "graphology": "^0.26.0",
     "graphology-communities-louvain": "^2.0.2",
     "graphology-shortest-path": "^2.1.0",

@@ -4,9 +4,11 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import chokidar from "chokidar"
 import { buildGraph } from "./lib/graph/graph-builder"
 import { buildDegreeMap, buildGraphologyFromState } from "./lib/graph/graph-store"
 import { detectCommunities } from "./lib/graph/graph-community"
+import { detectLanguage, detectDocLanguage } from "./lib/graph/ast-parser"
 import { bidirectional } from "graphology-shortest-path"
 import type { GraphState } from "./lib/graph/types"
 
@@ -157,6 +159,11 @@ function showHelp() {
   Commands:
     init             Set up OpenGem (Obsidian vault, wiki structure, OpenCode config)
     graph [dir]      Index source code into a local knowledge graph  (default: .)
+    watch [dir]      Watch for changes and re-index incrementally
+    hooks [install]  Install a post-commit git hook to keep the graph fresh
+    install [target] Configure Claude, Cursor or OpenCode to use the graph
+                     targets: claude | cursor | opencode | all (default)
+    mcp              Show MCP server setup instructions (binary: opengem-mcp)
     query <search>   Search the graph for nodes matching a name or file
     explain <sym>    Show incoming and outgoing edges for a symbol
     path <a> <b>     Find the shortest path between two symbols
@@ -164,6 +171,7 @@ function showHelp() {
   Examples:
     opengem init
     opengem graph ./src
+    opengem watch
     opengem query buildGraph
     opengem explain runGraphIndexTool
     opengem path runGraphIndexTool detectCommunities
@@ -176,60 +184,7 @@ async function cmdGraph(dirArg?: string) {
   const rootDir = resolve(dirArg ?? ".")
   console.log()
   p.intro("opengem graph")
-
-  const s = p.spinner()
-  s.start(`Scanning ${rootDir} …`)
-
-  const existing = loadLocalState(rootDir)
-
-  let result: Awaited<ReturnType<typeof buildGraph>>
-  try {
-    result = await buildGraph({ rootDir, existing })
-  } catch (err) {
-    s.stop("Build failed")
-    console.error(err)
-    process.exit(1)
-  }
-
-  const { nodes, edges, fileHashes, filesProcessed, filesSkipped } = result
-
-  const graphology = buildGraphologyFromState({
-    version: "1",
-    indexedAt: new Date().toISOString(),
-    rootDir,
-    fileHashes,
-    nodes,
-    edges,
-    communities: {},
-  })
-  const communities = detectCommunities(graphology)
-  const communityCount = new Set(Object.values(communities)).size
-  const resolvedEdges = edges.filter(e => !e.target.startsWith("__unresolved__")).length
-
-  const state: GraphState = {
-    version: "1",
-    indexedAt: new Date().toISOString(),
-    rootDir,
-    fileHashes,
-    nodes,
-    edges,
-    communities,
-  }
-  saveLocalState(rootDir, state)
-
-  // Save summary for the system-transform hook (graph context injection)
-  const summaryPath = join(rootDir, ".opengem", "graph-summary.json")
-  writeFileSync(summaryPath, JSON.stringify({
-    version: "1",
-    rootDir,
-    indexedAt: state.indexedAt,
-    nodeCount: nodes.length,
-    edgeCount: resolvedEdges,
-    communityCount,
-  }, null, 2) + "\n", "utf8")
-
-  const cacheNote = filesSkipped > 0 ? ` (${filesSkipped} cached)` : ""
-  s.stop(`Indexed ${filesProcessed} files${cacheNote} — ${nodes.length} nodes · ${resolvedEdges} edges · ${communityCount} communities`)
+  await runIndex(rootDir)
   p.outro(`Saved to .opengem/graph-state.json`)
 }
 
@@ -371,6 +326,102 @@ async function cmdPath(from?: string, to?: string) {
   console.log()
 }
 
+// ── Watch command ─────────────────────────────────────────────────────────────
+
+async function cmdWatch(dirArg?: string) {
+  const rootDir = resolve(dirArg ?? ".")
+  console.log()
+  p.intro("opengem watch")
+
+  // Run an initial full index
+  await runIndex(rootDir)
+
+  console.log(`\n  Watching ${rootDir} for changes. Press Ctrl+C to stop.\n`)
+
+  // Debounce: collect changed files over 400 ms then re-index together
+  const pending = new Set<string>()
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  const watcher = chokidar.watch(rootDir, {
+    ignored: [
+      /(^|[/\\])\../,                         // dot files/dirs
+      /node_modules/,
+      /dist/,
+      /build/,
+      /\.opengem/,
+      /coverage/,
+      /__pycache__/,
+    ],
+    persistent: true,
+    ignoreInitial: true,
+  })
+
+  function schedule(filePath: string) {
+    if (!detectLanguage(filePath) && !detectDocLanguage(filePath)) return
+    pending.add(filePath)
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(async () => {
+      const changed = [...pending]
+      pending.clear()
+      const rel = changed.map(f => f.replace(rootDir, "").replace(/\\/g, "/").replace(/^\//, ""))
+      console.log(`  Changed: ${rel.join(", ")}`)
+      await runIndex(rootDir)
+    }, 400)
+  }
+
+  watcher
+    .on("add", schedule)
+    .on("change", schedule)
+    .on("unlink", async (filePath) => {
+      if (!detectLanguage(filePath) && !detectDocLanguage(filePath)) return
+      // On deletion force full re-index (incremental can't remove stale nodes)
+      console.log(`  Deleted: ${filePath.replace(rootDir, "").replace(/\\/g, "/")}`)
+      await runIndex(rootDir, { force: true })
+    })
+
+  // Keep process alive
+  await new Promise(() => {})
+}
+
+async function runIndex(rootDir: string, opts: { force?: boolean } = {}) {
+  const existing = opts.force ? null : loadLocalState(rootDir)
+  const s = p.spinner()
+  s.start("Indexing…")
+
+  let result: Awaited<ReturnType<typeof buildGraph>>
+  try {
+    result = await buildGraph({ rootDir, existing })
+  } catch (err) {
+    s.stop("Build failed")
+    console.error(err)
+    return
+  }
+
+  const { nodes, edges, fileHashes, filesProcessed, filesSkipped } = result
+  const graphology = buildGraphologyFromState({
+    version: "1", indexedAt: new Date().toISOString(),
+    rootDir, fileHashes, nodes, edges, communities: {},
+  })
+  const communities = detectCommunities(graphology)
+  const communityCount = new Set(Object.values(communities)).size
+  const resolvedEdges = edges.filter(e => !e.target.startsWith("__unresolved__")).length
+
+  const state: GraphState = {
+    version: "1", indexedAt: new Date().toISOString(),
+    rootDir, fileHashes, nodes, edges, communities,
+  }
+  saveLocalState(rootDir, state)
+
+  const summaryPath = join(rootDir, ".opengem", "graph-summary.json")
+  writeFileSync(summaryPath, JSON.stringify({
+    version: "1", rootDir, indexedAt: state.indexedAt,
+    nodeCount: nodes.length, edgeCount: resolvedEdges, communityCount,
+  }, null, 2) + "\n", "utf8")
+
+  const cacheNote = filesSkipped > 0 ? ` (${filesSkipped} cached)` : ""
+  s.stop(`${filesProcessed} files${cacheNote} — ${nodes.length} nodes · ${resolvedEdges} edges · ${communityCount} communities`)
+}
+
 // ── Init command (original setup flow) ───────────────────────────────────────
 
 async function cmdInit() {
@@ -492,6 +543,215 @@ async function cmdInit() {
   )
 }
 
+// ── Install command ───────────────────────────────────────────────────────────
+
+const CLAUDE_MD_SECTION = `
+## Code Knowledge Graph (OpenGem)
+
+This project has an indexed code knowledge graph at \`.opengem/graph-state.json\`.
+
+When exploring the codebase, you can use these CLI commands for precise lookups:
+- \`opengem query <name>\` — find nodes by name or file
+- \`opengem explain <symbol>\` — show all connections for a symbol
+- \`opengem path <a> <b>\` — find the shortest path between two symbols
+
+Prefer these over broad file searches when you need to understand call graphs,
+module dependencies, or the relationship between specific functions.
+`
+
+const CURSOR_RULES = `# OpenGem Code Graph
+
+This project has a knowledge graph at \`.opengem/graph-state.json\` (built with opengem).
+
+When you need to understand the codebase structure, relationships between modules,
+or call graphs, use the following CLI commands:
+- \`opengem query <name>\` — search for functions, classes, or files
+- \`opengem explain <symbol>\` — list all callers and callees of a symbol
+- \`opengem path <a> <b>\` — trace the shortest dependency path between two symbols
+
+Run \`opengem watch\` in a terminal to keep the graph updated as you work.
+`
+
+type InstallTarget = "claude" | "cursor" | "opencode" | "all"
+
+async function cmdInstall(targetArg?: string) {
+  const validTargets: InstallTarget[] = ["claude", "cursor", "opencode", "all"]
+  const target = (targetArg ?? "all") as InstallTarget
+
+  if (!validTargets.includes(target)) {
+    console.error(`\nUsage: opengem install [${validTargets.join("|")}]\n`)
+    process.exit(1)
+  }
+
+  const rootDir = resolve(".")
+  const results: string[] = []
+
+  // ── Claude (CLAUDE.md) ────────────────────────────────────────────────────
+  if (target === "claude" || target === "all") {
+    const claudePath = join(rootDir, "CLAUDE.md")
+    const marker = "## Code Knowledge Graph (OpenGem)"
+    if (existsSync(claudePath)) {
+      const existing = readFileSync(claudePath, "utf8")
+      if (existing.includes(marker)) {
+        results.push("CLAUDE.md — already configured")
+      } else {
+        writeFileSync(claudePath, existing.trimEnd() + "\n" + CLAUDE_MD_SECTION, "utf8")
+        results.push("CLAUDE.md — updated")
+      }
+    } else {
+      writeFileSync(claudePath, CLAUDE_MD_SECTION.trim() + "\n", "utf8")
+      results.push("CLAUDE.md — created")
+    }
+  }
+
+  // ── Cursor (.cursor/rules) ────────────────────────────────────────────────
+  if (target === "cursor" || target === "all") {
+    const cursorDir = join(rootDir, ".cursor")
+    const rulesPath = join(cursorDir, "rules")
+    if (!existsSync(cursorDir)) mkdirSync(cursorDir, { recursive: true })
+    if (existsSync(rulesPath)) {
+      const existing = readFileSync(rulesPath, "utf8")
+      if (existing.includes("opengem")) {
+        results.push(".cursor/rules — already configured")
+      } else {
+        writeFileSync(rulesPath, existing.trimEnd() + "\n\n" + CURSOR_RULES, "utf8")
+        results.push(".cursor/rules — updated")
+      }
+    } else {
+      writeFileSync(rulesPath, CURSOR_RULES.trim() + "\n", "utf8")
+      results.push(".cursor/rules — created")
+    }
+  }
+
+  // ── OpenCode (opencode.json) ──────────────────────────────────────────────
+  if (target === "opencode" || target === "all") {
+    const globalPath = join(homedir(), ".config", "opencode", "opencode.json")
+    const localPath = join(rootDir, "opencode.json")
+    const configPath = existsSync(localPath) ? localPath : globalPath
+
+    const config = readConfig(configPath)
+    const plugins = (config.plugin as unknown[] | undefined) ?? []
+    const alreadyHas = plugins.some(e => {
+      const name = Array.isArray(e) ? e[0] : e
+      return typeof name === "string" && name.includes("opengem")
+    })
+
+    if (alreadyHas) {
+      results.push(`${configPath === globalPath ? "~/.config/opencode/opencode.json" : "opencode.json"} — already configured`)
+    } else {
+      const dir = dirname(configPath)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      plugins.push("@cubocompany/opengem")
+      config.plugin = plugins
+      writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8")
+      results.push(`${configPath === globalPath ? "~/.config/opencode/opencode.json" : "opencode.json"} — updated`)
+    }
+  }
+
+  console.log()
+  for (const r of results) console.log(`  ✓ ${r}`)
+  console.log()
+}
+
+// ── MCP help ──────────────────────────────────────────────────────────────────
+
+function cmdMcpHelp() {
+  console.log(`
+  opengem-mcp — MCP server for the code knowledge graph
+
+  Start the server:
+    npx opengem-mcp
+
+  Tools exposed:
+    graph_index    Index a directory into .opengem/graph-state.json
+    graph_query    Search nodes by name or file
+    graph_explain  Show all connections for a symbol
+    graph_path     Find shortest path between two symbols
+
+  Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json):
+    {
+      "mcpServers": {
+        "opengem": {
+          "command": "npx",
+          "args": ["opengem-mcp"]
+        }
+      }
+    }
+
+  OpenCode (opencode.json):
+    {
+      "mcp": {
+        "opengem": {
+          "type": "stdio",
+          "command": "npx",
+          "args": ["opengem-mcp"]
+        }
+      }
+    }
+`)
+}
+
+// ── Hooks command ─────────────────────────────────────────────────────────────
+
+const POST_COMMIT_SCRIPT = `#!/bin/sh
+# Installed by opengem hooks install
+# Re-indexes the graph after each commit so context stays fresh.
+opengem graph . 2>/dev/null || true
+`
+
+async function cmdHooks(sub?: string) {
+  const action = sub ?? "install"
+
+  if (action !== "install" && action !== "uninstall") {
+    console.error("\nUsage: opengem hooks [install|uninstall]\n")
+    process.exit(1)
+  }
+
+  const hooksDir = resolve(".git", "hooks")
+  if (!existsSync(hooksDir)) {
+    console.error("\n  Not a git repository (no .git/hooks found)\n")
+    process.exit(1)
+  }
+
+  const hookPath = join(hooksDir, "post-commit")
+
+  if (action === "uninstall") {
+    if (!existsSync(hookPath)) {
+      console.log("\n  No post-commit hook installed.\n")
+      return
+    }
+    const content = readFileSync(hookPath, "utf8")
+    if (!content.includes("opengem")) {
+      console.error("\n  post-commit hook not managed by opengem — not removing.\n")
+      process.exit(1)
+    }
+    const { unlinkSync } = await import("node:fs")
+    unlinkSync(hookPath)
+    console.log("\n  post-commit hook removed.\n")
+    return
+  }
+
+  // install
+  if (existsSync(hookPath)) {
+    const content = readFileSync(hookPath, "utf8")
+    if (content.includes("opengem")) {
+      console.log("\n  post-commit hook already installed.\n")
+      return
+    }
+    // Append to existing hook
+    writeFileSync(hookPath, content.trimEnd() + "\n\n" + POST_COMMIT_SCRIPT.trim() + "\n", "utf8")
+    console.log("\n  Appended opengem graph to existing post-commit hook.\n")
+  } else {
+    writeFileSync(hookPath, POST_COMMIT_SCRIPT, "utf8")
+    // chmod +x on Unix-like systems
+    try {
+      const { chmodSync } = await import("node:fs")
+      chmodSync(hookPath, 0o755)
+    } catch { /* Windows — chmod not needed */ }
+    console.log(`\n  post-commit hook installed at ${hookPath}\n`)
+  }
+}
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -503,9 +763,13 @@ async function main() {
     case undefined:
     case "init":    await cmdInit(); break
     case "graph":   await cmdGraph(rest[0]); break
+    case "watch":   await cmdWatch(rest[0]); break
     case "query":   await cmdQuery(rest.join(" ")); break
     case "explain": await cmdExplain(rest.join(" ")); break
     case "path":    await cmdPath(rest[0], rest[1]); break
+    case "hooks":   await cmdHooks(rest[0]); break
+    case "install": await cmdInstall(rest[0]); break
+    case "mcp":     cmdMcpHelp(); break
     default:
       console.error(`\n  Unknown command: ${cmd}\n`)
       showHelp()
