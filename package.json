@@ -5,7 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./tui": "./dist/tui.js"
   },
   "bin": {
     "opengem": "./dist/cli.js"
@@ -28,7 +29,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
+    "build": "bun build src/index.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/tui.ts --outdir dist --format esm --target node --external @opencode-ai/plugin && bun build src/cli.ts --outdir dist --format esm --target node",
     "prepublishOnly": "bun run build",
     "test": "bun test",
     "check": "tsc --noEmit",
@@ -47,6 +48,8 @@
     "web-tree-sitter": "^0.26.8"
   },
   "devDependencies": {
+    "@opentui/core": "^0.1.99",
+    "@opentui/solid": "^0.1.99",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",

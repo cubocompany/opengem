@@ -7,6 +7,7 @@ import { detectCli, detectApp } from "./lib/capabilities"
 import { detectSkillsState } from "./lib/skills"
 import { resolveWikiPaths } from "./lib/wiki"
 import { homedir } from "node:os"
+import { loadGraphSummary } from "./lib/graph/graph-store"
 
 // v1 tools
 import { runReadTool } from "./tools/read"
@@ -57,8 +58,9 @@ const {
   obsidian_graph_index, obsidian_graph_neighbors, obsidian_graph_path, obsidian_graph_query,
 } = TOOL_MANIFEST
 
-export const OpenGemPlugin: Plugin = async (_input, options) => {
+export const OpenGemPlugin: Plugin = async (input, options) => {
   const shell = makeBunSpawnShell()
+  const projectDir = input.directory
   const config = resolvePluginConfig({
     defaultVault: (options?.defaultVault as string | undefined) ?? null,
     wiki: {
@@ -79,6 +81,25 @@ export const OpenGemPlugin: Plugin = async (_input, options) => {
   })
 
   return {
+    "experimental.chat.system.transform": async (_input, output) => {
+      const summary = await loadGraphSummary(projectDir).catch(() => null)
+      if (summary) {
+        const age = Math.round((Date.now() - new Date(summary.indexedAt).getTime()) / 60000)
+        const ageStr = age < 60 ? `${age}m ago` : `${Math.round(age / 60)}h ago`
+        output.system.push(
+          `## OpenGem — Code Knowledge Graph\n` +
+          `This project's codebase is indexed: **${summary.nodeCount} symbols** · ` +
+          `**${summary.edgeCount} edges** · **${summary.communityCount} communities** ` +
+          `(last indexed ${ageStr}).\n\n` +
+          `**Use these tools instead of reading files when understanding code structure:**\n` +
+          `- \`obsidian_graph_query\` — find symbols by name, file, or type\n` +
+          `- \`obsidian_graph_neighbors\` — see what calls/imports/contains a symbol\n` +
+          `- \`obsidian_graph_path\` — trace the connection between two symbols\n\n` +
+          `This avoids reading source files and reduces token usage significantly.`
+        )
+      }
+    },
+
     tool: {
       // ── v1 ──────────────────────────────────────────────────────────────
       obsidian_read: tool({

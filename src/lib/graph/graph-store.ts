@@ -1,7 +1,41 @@
 import { createHash } from "node:crypto"
-import { existsSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
+import { join, dirname } from "node:path"
 import DirectedGraph from "graphology"
 import type { GraphState, AstNode, AstEdge } from "./types"
+
+// ── Graph summary (stored in project dir for the system transform hook) ───────
+
+export type GraphSummary = {
+  version: "1"
+  rootDir: string
+  indexedAt: string
+  nodeCount: number
+  edgeCount: number
+  communityCount: number
+}
+
+export function graphSummaryPath(projectDir: string): string {
+  return join(projectDir, ".opengem", "graph-summary.json")
+}
+
+export async function saveGraphSummary(projectDir: string, summary: GraphSummary): Promise<void> {
+  const path = graphSummaryPath(projectDir)
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  await Bun.write(path, JSON.stringify(summary, null, 2) + "\n")
+}
+
+export async function loadGraphSummary(projectDir: string): Promise<GraphSummary | null> {
+  const path = graphSummaryPath(projectDir)
+  if (!existsSync(path)) return null
+  try {
+    const text = await Bun.file(path).text()
+    return JSON.parse(text) as GraphSummary
+  } catch {
+    return null
+  }
+}
 
 // ── State persistence ─────────────────────────────────────────────────────────
 

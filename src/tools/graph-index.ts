@@ -3,7 +3,7 @@ import { dirname } from "node:path"
 import { executeObsidianCli, errorResult } from "../lib/cli"
 import { resolvePluginConfig, resolveVault } from "../lib/config"
 import { buildGraph } from "../lib/graph/graph-builder"
-import { buildGraphologyFromState, loadGraphState, saveGraphState } from "../lib/graph/graph-store"
+import { buildGraphologyFromState, loadGraphState, saveGraphState, saveGraphSummary } from "../lib/graph/graph-store"
 import { detectCommunities } from "../lib/graph/graph-community"
 import { renderNodeNote, renderGraphIndex } from "../lib/graph/note-renderer"
 import { resolveGraphPaths, nodeIdToNoteName } from "../lib/graph/graph-paths"
@@ -98,9 +98,21 @@ export async function runGraphIndexTool(args: {
     { requiredCapabilities: ["cli", "app", "vault"], checkedCapabilities: ["cli", "app", "vault"] },
   )
 
-  // Persist state
-  const state = { version: "1" as const, indexedAt: new Date().toISOString(), rootDir: args.input.rootDir, fileHashes, nodes, edges, communities }
+  const indexedAt = new Date().toISOString()
+
+  // Persist full state to vault
+  const state = { version: "1" as const, indexedAt, rootDir: args.input.rootDir, fileHashes, nodes, edges, communities }
   await saveGraphState(graphPaths.statePath, state)
+
+  // Persist lightweight summary to project dir (used by system transform hook)
+  await saveGraphSummary(args.input.rootDir, {
+    version: "1",
+    rootDir: args.input.rootDir,
+    indexedAt,
+    nodeCount: nodes.length,
+    edgeCount: edges.filter(e => !e.target.startsWith("__unresolved__")).length,
+    communityCount,
+  })
 
   return {
     schemaVersion: "1.0",
