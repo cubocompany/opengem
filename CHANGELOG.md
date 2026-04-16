@@ -1,3 +1,10 @@
+## [0.7.5](https://github.com/cubocompany/opengem/compare/v0.7.4...v0.7.5) (2026-04-16)
+
+
+### Bug Fixes
+
+* **graph-index:** write vault notes via fs instead of CLI subprocesses ([b34743d](https://github.com/cubocompany/opengem/commit/b34743dbffb5e65f1e1d85337a1ba333c8f8cd0c))
+
 ## [0.7.4](https://github.com/cubocompany/opengem/compare/v0.7.3...v0.7.4) (2026-04-16)
 
 
