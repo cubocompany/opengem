@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/cubocompany/opengem/compare/v0.2.2...v0.3.0) (2026-04-16)
+
+
+### Features
+
+* **graph:** add code knowledge graph with tree-sitter AST extraction ([974f98e](https://github.com/cubocompany/opengem/commit/974f98eeb29d50a8635842a67b8196b0f7df357a))
+
 ## [0.2.2](https://github.com/cubocompany/opengem/compare/v0.2.1...v0.2.2) (2026-04-16)
 
 
