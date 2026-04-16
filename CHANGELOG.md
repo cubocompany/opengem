@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/cubocompany/opengem/compare/v0.2.1...v0.2.2) (2026-04-16)
+
+
+### Bug Fixes
+
+* **init:** reduce obsidian CLI calls, wait for app instead of exiting, fix global config path ([15dcebb](https://github.com/cubocompany/opengem/commit/15dcebbfbed5b43283f03ef5f9f3bd583910d5f5))
+
 ## [0.2.1](https://github.com/cubocompany/opengem/compare/v0.2.0...v0.2.1) (2026-04-15)
 
 
