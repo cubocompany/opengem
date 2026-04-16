@@ -28,9 +28,16 @@ export async function runGraphQueryTool(args: {
     return errorResult("VAULT_REQUIRED", "Vault required", "Pass vault or configure defaultVault", "obsidian_graph_query", args.input, [], [])
   }
 
-  const vaultPath = args.input.vaultPath ?? args.vaultPath
+  let vaultPath = args.input.vaultPath ?? args.vaultPath
   if (!vaultPath) {
-    return errorResult("VAULT_NOT_FOUND", "Vault filesystem path required", "Run obsidian_graph_index first", "obsidian_graph_query", args.input, [], [])
+    const vaultInfo = await args.shell(["obsidian", "vault"])
+    if (vaultInfo.exitCode === 0) {
+      const match = vaultInfo.stdout.match(/^path\t(.+)$/m)
+      if (match) vaultPath = match[1].trim()
+    }
+  }
+  if (!vaultPath) {
+    return errorResult("VAULT_NOT_FOUND", "Could not detect vault path. Pass vaultPath explicitly or ensure Obsidian is running.", "Run obsidian_graph_index first", "obsidian_graph_query", args.input, [], [])
   }
 
   const graphPaths = resolveGraphPaths({ vault, vaultPath, graphDir: args.input.graphDir })

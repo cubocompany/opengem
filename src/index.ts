@@ -80,7 +80,78 @@ export const OpenGemPlugin: Plugin = async (input, options) => {
     schemaDir: config.wiki.schemaDir,
   })
 
+  // ── Slash commands ───────────────────────────────────────────────────────────
+
+  const COMMANDS = {
+    "og-graph-index": {
+      template: `Index this project's source code into my Obsidian knowledge graph. Call obsidian_graph_index with rootDir set to the current working directory (use the 'pwd' bash command to get it if unsure). Do NOT pass vaultPath — it will be auto-detected from the running Obsidian app.`,
+      description: "Parse the codebase with tree-sitter and store a knowledge graph in Obsidian",
+    },
+    "og-find": {
+      template: "Search my code knowledge graph. Ask me what symbol or pattern to find.",
+      description: "Find a function, class, or module in the knowledge graph",
+    },
+    "og-explain": {
+      template: "Explain the connections of a symbol in the code graph. Ask me which symbol to explain.",
+      description: "Show what calls, imports, or is related to a symbol",
+    },
+    "og-path": {
+      template: "Find the path between two symbols in the code graph. Ask me which symbols to connect.",
+      description: "Find the shortest path between two symbols in the graph",
+    },
+    "og-wiki-add": {
+      template: "Add an article to my Obsidian wiki. Ask me for the URL.",
+      description: "Ingest a URL into your Obsidian wiki (raw + curated pages)",
+    },
+    "og-wiki-search": {
+      template: "Search my Obsidian wiki. Ask me what to search for.",
+      description: "Search your Obsidian wiki with citations",
+    },
+    "og-wiki-save": {
+      template: "Save the last answer to my Obsidian wiki using obsidian_wiki_save_answer",
+      description: "Save the last answer as a note in wiki/answers/",
+    },
+    "og-wiki-lint": {
+      template: "Run obsidian_wiki_lint to check my wiki for broken links and orphan pages",
+      description: "Detect broken links, orphan pages, and missing index entries",
+    },
+    "og-help": {
+      template: "List all available OpenGem tools with a brief description and example usage for each one",
+      description: "List all available OpenGem tools and how to use them",
+    },
+    "og-doctor": {
+      template: "Run obsidian_env_doctor to check my Obsidian setup",
+      description: "Verify Obsidian CLI is installed and the app is running",
+    },
+  } as const
+
+  // Args-aware templates: when user types `/og-find MyFunction`, substitute the args
+  const ARGS_TEMPLATES: Record<string, (args: string) => string> = {
+    "og-find": (args) => `Search the code graph for: ${args}`,
+    "og-explain": (args) => `Explain the connections of this symbol in the code graph: ${args}`,
+    "og-path": (args) => `Find the path in the code graph from ${args}`,
+    "og-wiki-add": (args) => `Add this article to my wiki: ${args}`,
+    "og-wiki-search": (args) => `Search my wiki for: ${args}`,
+  }
+
   return {
+    config: async (cfg) => {
+      cfg.command ??= {}
+      for (const [key, cmd] of Object.entries(COMMANDS)) {
+        cfg.command[key] = { template: cmd.template, description: cmd.description }
+      }
+    },
+
+    "command.execute.before": async (input, output) => {
+      if (!(input.command in COMMANDS)) return
+      const args = input.arguments?.trim()
+      if (!args) return
+      const builder = ARGS_TEMPLATES[input.command]
+      if (!builder) return
+      output.parts.length = 0
+      output.parts.push({ type: "text", text: builder(args) } as never)
+    },
+
     "experimental.chat.system.transform": async (_input, output) => {
       const summary = await loadGraphSummary(projectDir).catch(() => null)
       if (summary) {

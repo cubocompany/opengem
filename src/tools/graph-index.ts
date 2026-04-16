@@ -32,9 +32,17 @@ export async function runGraphIndexTool(args: {
     return errorResult("VAULT_REQUIRED", "Write commands require a vault", "Pass vault or configure defaultVault", "obsidian_graph_index", args.input, ["cli", "app", "vault"], ["cli", "app", "vault"])
   }
 
-  const vaultPath = args.input.vaultPath ?? args.vaultPath
+  let vaultPath = args.input.vaultPath ?? args.vaultPath
   if (!vaultPath) {
-    return errorResult("VAULT_NOT_FOUND", "Vault filesystem path required for graph indexing", "Run obsidian_env_doctor to check vault detection", "obsidian_graph_index", args.input, ["cli", "app", "vault"], ["cli", "app", "vault"])
+    // Auto-detect: `obsidian vault` outputs "path\t<absolute-path>" for the active vault
+    const vaultInfo = await args.shell(["obsidian", "vault"])
+    if (vaultInfo.exitCode === 0) {
+      const match = vaultInfo.stdout.match(/^path\t(.+)$/m)
+      if (match) vaultPath = match[1].trim()
+    }
+  }
+  if (!vaultPath) {
+    return errorResult("VAULT_NOT_FOUND", "Could not detect vault filesystem path. Pass vaultPath explicitly or ensure Obsidian is running.", "Run obsidian_env_doctor to check vault detection", "obsidian_graph_index", args.input, ["cli", "app", "vault"], ["cli", "app", "vault"])
   }
 
   const graphPaths = resolveGraphPaths({ vault, vaultPath, graphDir: args.input.graphDir })
