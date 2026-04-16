@@ -9,6 +9,7 @@ import { buildGraph } from "./lib/graph/graph-builder"
 import { buildDegreeMap, buildGraphologyFromState } from "./lib/graph/graph-store"
 import { detectCommunities } from "./lib/graph/graph-community"
 import { detectLanguage, detectDocLanguage } from "./lib/graph/ast-parser"
+import { writeOutputs } from "./lib/graph/output-renderer"
 import { bidirectional } from "graphology-shortest-path"
 import type { GraphState } from "./lib/graph/types"
 
@@ -159,6 +160,7 @@ function showHelp() {
   Commands:
     init             Set up OpenGem (Obsidian vault, wiki structure, OpenCode config)
     graph [dir]      Index source code into a local knowledge graph  (default: .)
+                     Writes .opengem/graph-state.json + opengem-out/ (report, graph.html)
     watch [dir]      Watch for changes and re-index incrementally
     hooks [install]  Install a post-commit git hook to keep the graph fresh
     install [target] Configure Claude, Cursor or OpenCode to use the graph
@@ -167,6 +169,14 @@ function showHelp() {
     query <search>   Search the graph for nodes matching a name or file
     explain <sym>    Show incoming and outgoing edges for a symbol
     path <a> <b>     Find the shortest path between two symbols
+
+  Ignore rules:
+    Add a .opengemignore file (gitignore syntax) to exclude paths from indexing.
+
+  Output:
+    opengem-out/graph.html        Interactive vis.js visualization
+    opengem-out/GRAPH_REPORT.md   God nodes, communities, language stats
+    opengem-out/graph.json        Clean node/edge/community export
 
   Examples:
     opengem init
@@ -185,7 +195,7 @@ async function cmdGraph(dirArg?: string) {
   console.log()
   p.intro("opengem graph")
   await runIndex(rootDir)
-  p.outro(`Saved to .opengem/graph-state.json`)
+  p.outro(`Saved to .opengem/  ·  opengem-out/graph.html`)
 }
 
 async function cmdQuery(query: string) {
@@ -417,6 +427,11 @@ async function runIndex(rootDir: string, opts: { force?: boolean } = {}) {
     version: "1", rootDir, indexedAt: state.indexedAt,
     nodeCount: nodes.length, edgeCount: resolvedEdges, communityCount,
   }, null, 2) + "\n", "utf8")
+
+  // Write opengem-out/ (graph.json, GRAPH_REPORT.md, graph.html)
+  try {
+    writeOutputs(state)
+  } catch { /* non-fatal */ }
 
   const cacheNote = filesSkipped > 0 ? ` (${filesSkipped} cached)` : ""
   s.stop(`${filesProcessed} files${cacheNote} — ${nodes.length} nodes · ${resolvedEdges} edges · ${communityCount} communities`)

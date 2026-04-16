@@ -34,7 +34,17 @@ opengem watch          # keep the graph live as you code
 
 ## Code Knowledge Graph
 
-OpenGem can parse your source code into a **navigable knowledge graph** — functions, classes, modules, and their relationships (calls, imports, contains). The graph is stored locally at `.opengem/graph-state.json` and updated incrementally.
+OpenGem parses your source code into a **navigable knowledge graph** — functions, classes, modules, and their relationships (calls, imports, contains). The graph is stored locally at `.opengem/graph-state.json` and updated incrementally.
+
+### Why a knowledge graph?
+
+Your raw source files are the full, uncompressed representation of your codebase. The knowledge graph is the **distilled, queryable memory** — symbols, relationships, and communities extracted once, reused across every AI session.
+
+Instead of reading entire files, your AI assistant can ask:
+- "What calls `buildGraph`?" → one graph lookup, no file reads
+- "What does `runGraphIndexTool` depend on?" → instant call chain, no grepping
+
+The graph is your token-efficient entry point to the codebase.
 
 ### Supported languages
 
@@ -109,6 +119,43 @@ opengem hooks uninstall   # removes it
 
 ---
 
+## opengem-out/ — Visual Output
+
+Every `opengem graph` run generates a human-readable output folder alongside the machine-readable state:
+
+```
+opengem-out/
+  graph.html        ← interactive vis.js visualization (open in browser)
+  GRAPH_REPORT.md   ← god nodes, communities, language stats, suggested questions
+  graph.json        ← clean node/edge/community export for external tools
+```
+
+Open `opengem-out/graph.html` in any browser — no server required. Nodes are sized by connectivity, colored by community, and searchable. The report helps you understand the architecture at a glance and surfaces the most-connected symbols before you start exploring.
+
+---
+
+## .opengemignore
+
+Add a `.opengemignore` file to your project root to exclude paths from indexing. Uses the same gitignore syntax:
+
+```gitignore
+# Exclude generated files
+generated/
+*.pb.go
+
+# Exclude test fixtures
+**/__fixtures__/
+tests/snapshots/
+
+# Exclude vendored code
+vendor/
+third_party/
+```
+
+Node modules, `.git`, `dist`, `build`, and other common non-source directories are always excluded regardless of `.opengemignore`.
+
+---
+
 ## MCP Server
 
 OpenGem ships a standalone **MCP server** (`opengem-mcp`) that exposes the knowledge graph to any MCP-compatible AI client — Claude Desktop, Cursor, or any other tool that supports the Model Context Protocol.
@@ -180,12 +227,18 @@ When loaded as an OpenCode plugin, OpenGem registers slash commands directly in 
 
 | Command | Action |
 |---|---|
-| `/og-graph-index` | Index this project's code into your Obsidian graph |
-| `/og-find <name>` | Search the code graph for a symbol or file |
-| `/og-explain <symbol>` | Explain the connections of a symbol |
-| `/og-path <from> <to>` | Find the path between two symbols |
-| `/og-wiki-add <url>` | Add an article to your wiki |
-| `/og-wiki-search <query>` | Search your wiki |
+| `/opengem-graph-index` | Index this project's code into your Obsidian graph |
+| `/opengem-find <name>` | Search the code graph for a symbol or file |
+| `/opengem-explain <symbol>` | Explain the connections of a symbol |
+| `/opengem-path <from> <to>` | Find the path between two symbols |
+| `/opengem-wiki-add <url>` | Add an article to your wiki |
+| `/opengem-wiki-search <query>` | Search your wiki |
+| `/opengem-wiki-save` | Save the last answer to your wiki |
+| `/opengem-wiki-lint` | Check your wiki for broken links |
+| `/opengem-help` | List all available OpenGem tools |
+| `/opengem-doctor` | Verify Obsidian CLI and app status |
+
+Args are passed directly: `/opengem-find buildGraph` → searches for `buildGraph` without a follow-up prompt.
 
 ---
 
@@ -318,18 +371,21 @@ src/
   tui.ts                ← OpenCode TUI plugin
   lib/
     graph/
-      ast-parser.ts     ← language detection + tree-sitter parser cache
-      ast-js.ts         ← JS/TS dedicated extractor
-      ast-py.ts         ← Python dedicated extractor
-      ast-generic.ts    ← config-driven extractor for 12 languages
-      ast-md.ts         ← Markdown extractor (headings, wikilinks)
-      ast-pdf.ts        ← PDF extractor (unpdf/pdfjs)
-      language-configs.ts ← per-language node type and name strategy configs
-      graph-builder.ts  ← incremental build pipeline (all languages)
-      graph-store.ts    ← state persistence + graphology construction
-      graph-community.ts ← Louvain community detection
-      graph-paths.ts    ← node ID ↔ Obsidian note name conversion
-      note-renderer.ts  ← renders graph nodes as Obsidian markdown notes
+      ast-parser.ts         ← language detection + tree-sitter parser cache
+      ast-js.ts             ← JS/TS dedicated extractor
+      ast-py.ts             ← Python dedicated extractor
+      ast-generic.ts        ← config-driven extractor for 12 languages
+      ast-md.ts             ← Markdown extractor (headings, wikilinks)
+      ast-pdf.ts            ← PDF extractor (unpdf/pdfjs)
+      language-configs.ts   ← per-language node type and name strategy configs
+      graph-builder.ts      ← incremental build pipeline (all languages)
+      graph-store.ts        ← state persistence + graphology construction
+      graph-community.ts    ← Louvain community detection
+      graph-paths.ts        ← node ID ↔ Obsidian note name conversion
+      graph-community.ts    ← Louvain community detection
+      ignore-parser.ts      ← .opengemignore gitignore-style rule loader
+      output-renderer.ts    ← opengem-out/ generator (graph.html, GRAPH_REPORT.md, graph.json)
+      note-renderer.ts      ← renders graph nodes as Obsidian markdown notes
     wiki.ts / config.ts / cli.ts / types.ts
   tools/                ← individual tool implementations
 ```

@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path"
 import { buildGraph } from "./lib/graph/graph-builder"
 import { buildDegreeMap, buildGraphologyFromState } from "./lib/graph/graph-store"
 import { detectCommunities } from "./lib/graph/graph-community"
+import { writeOutputs } from "./lib/graph/output-renderer"
 import { bidirectional } from "graphology-shortest-path"
 import type { GraphState, AstNodeKind } from "./lib/graph/types"
 
@@ -74,10 +75,11 @@ server.tool(
     const communityCount = new Set(Object.values(communities)).size
     const resolvedEdges = edges.filter(e => !e.target.startsWith("__unresolved__")).length
 
-    saveLocalState(absDir, {
+    const finalState: GraphState = {
       version: "1", indexedAt: new Date().toISOString(),
       rootDir: absDir, fileHashes, nodes, edges, communities,
-    })
+    }
+    saveLocalState(absDir, finalState)
 
     const summaryPath = join(absDir, ".opengem", "graph-summary.json")
     writeFileSync(summaryPath, JSON.stringify({
@@ -85,10 +87,12 @@ server.tool(
       nodeCount: nodes.length, edgeCount: resolvedEdges, communityCount,
     }, null, 2) + "\n", "utf8")
 
+    try { writeOutputs(finalState) } catch { /* non-fatal */ }
+
     return {
       content: [{
         type: "text",
-        text: `Indexed ${filesProcessed} files (${filesSkipped} cached) — ${nodes.length} nodes, ${resolvedEdges} edges, ${communityCount} communities.`,
+        text: `Indexed ${filesProcessed} files (${filesSkipped} cached) — ${nodes.length} nodes, ${resolvedEdges} edges, ${communityCount} communities. Output written to opengem-out/.`,
       }],
     }
   }

@@ -8,25 +8,27 @@ import { extractMarkdown } from "./ast-md"
 import { extractPdf } from "./ast-pdf"
 import { LANGUAGE_CONFIGS } from "./language-configs"
 import { computeFileHash } from "./graph-store"
+import { loadIgnoreRules } from "./ignore-parser"
 import type { AstNode, AstEdge, GraphState } from "./types"
 
-const IGNORED_DIRS = new Set(["node_modules", ".git", "dist", "build", ".cache", "__pycache__", ".venv", "venv", "coverage"])
-
-function collectFiles(dir: string, root: string): string[] {
+function collectFiles(dir: string, root: string, isIgnored: (rel: string) => boolean): string[] {
   const results: string[] = []
   let entries: string[]
   try { entries = readdirSync(dir, { encoding: "utf8" }) as string[] } catch { return results }
 
   for (const entry of entries) {
-    if (entry.startsWith(".") && entry !== ".") continue
     const full = join(dir, entry)
+    const rel = relative(root, full).replace(/\\/g, "/")
     let stat
     try { stat = statSync(full) } catch { continue }
     if (stat.isDirectory()) {
-      if (IGNORED_DIRS.has(entry)) continue
-      results.push(...collectFiles(full, root))
-    } else if (stat.isFile() && (detectLanguage(entry) || detectDocLanguage(entry))) {
-      results.push(full)
+      if (isIgnored(rel + "/")) continue
+      results.push(...collectFiles(full, root, isIgnored))
+    } else if (stat.isFile()) {
+      if (isIgnored(rel)) continue
+      if (detectLanguage(entry) || detectDocLanguage(entry)) {
+        results.push(full)
+      }
     }
   }
   return results
@@ -45,7 +47,8 @@ export async function buildGraph(args: {
   existing: GraphState | null
   languages?: string[]
 }): Promise<BuildResult> {
-  const allFiles = collectFiles(args.rootDir, args.rootDir)
+  const isIgnored = loadIgnoreRules(args.rootDir)
+  const allFiles = collectFiles(args.rootDir, args.rootDir, isIgnored)
   const defaultLangs = ["typescript", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS), "markdown", "pdf"]
   const allowedLangs = new Set(args.languages ?? defaultLangs)
 
