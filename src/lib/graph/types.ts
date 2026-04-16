@@ -1,6 +1,6 @@
 // ── AST extraction (language-agnostic intermediate form) ─────────────────────
 
-export type AstNodeKind = "function" | "class" | "module" | "method" | "variable"
+export type AstNodeKind = "function" | "class" | "module" | "method" | "variable" | "section"
 export type AstEdgeKind = "calls" | "imports" | "contains" | "inherits" | "defines"
 
 export type AstNode = {
@@ -9,7 +9,7 @@ export type AstNode = {
   name: string
   file: string        // relative to project root
   line: number
-  language: "javascript" | "typescript" | "python"
+  language: string
   docComment: string | null
 }
 

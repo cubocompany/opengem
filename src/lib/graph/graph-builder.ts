@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
-import { getParser, detectLanguage, isDedicated } from "./ast-parser"
+import { getParser, detectLanguage, detectDocLanguage, isDedicated } from "./ast-parser"
 import { extractJsTs } from "./ast-js"
 import { extractPython } from "./ast-py"
 import { extractGeneric } from "./ast-generic"
+import { extractMarkdown } from "./ast-md"
+import { extractPdf } from "./ast-pdf"
 import { LANGUAGE_CONFIGS } from "./language-configs"
 import { computeFileHash } from "./graph-store"
 import type { AstNode, AstEdge, GraphState } from "./types"
@@ -23,7 +25,7 @@ function collectFiles(dir: string, root: string): string[] {
     if (stat.isDirectory()) {
       if (IGNORED_DIRS.has(entry)) continue
       results.push(...collectFiles(full, root))
-    } else if (stat.isFile() && detectLanguage(entry)) {
+    } else if (stat.isFile() && (detectLanguage(entry) || detectDocLanguage(entry))) {
       results.push(full)
     }
   }
@@ -44,7 +46,7 @@ export async function buildGraph(args: {
   languages?: string[]
 }): Promise<BuildResult> {
   const allFiles = collectFiles(args.rootDir, args.rootDir)
-  const defaultLangs = ["typescript", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS)]
+  const defaultLangs = ["typescript", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS), "markdown", "pdf"]
   const allowedLangs = new Set(args.languages ?? defaultLangs)
 
   const existingHashes = args.existing?.fileHashes ?? {}
@@ -75,7 +77,9 @@ export async function buildGraph(args: {
   for (const fullPath of allFiles) {
     const relPath = relative(args.rootDir, fullPath).replace(/\\/g, "/")
     const lang = detectLanguage(fullPath)
-    if (!lang || !allowedLangs.has(lang)) continue
+    const docLang = detectDocLanguage(fullPath)
+    const activeLang = lang ?? docLang
+    if (!activeLang || !allowedLangs.has(activeLang)) continue
 
     let content: string
     try { content = readFileSync(fullPath, "utf8") } catch { continue }
@@ -83,7 +87,6 @@ export async function buildGraph(args: {
     const hash = computeFileHash(content)
 
     if (existingHashes[relPath] === hash) {
-      // Cache hit — reuse existing nodes/edges for this file
       filesSkipped++
       fileHashes[relPath] = hash
       allNodes.push(...(existingNodesByFile.get(relPath) ?? []))
@@ -91,22 +94,30 @@ export async function buildGraph(args: {
       continue
     }
 
-    // Parse file
+    // Extract file
     try {
-      const parser = await getParser(lang)
-      const tree = parser.parse(content)
-      if (!tree) { filesSkipped++; continue }
       let extracted: { nodes: AstNode[]; edges: AstEdge[] }
 
-      if (isDedicated(lang)) {
-        if (lang === "python") {
-          extracted = extractPython(tree, relPath)
+      if (docLang === "markdown") {
+        extracted = extractMarkdown(content, relPath)
+      } else if (docLang === "pdf") {
+        extracted = await extractPdf(fullPath, relPath)
+      } else if (lang) {
+        const parser = await getParser(lang)
+        const tree = parser.parse(content)
+        if (!tree) { filesSkipped++; continue }
+
+        if (isDedicated(lang)) {
+          if (lang === "python") {
+            extracted = extractPython(tree, relPath)
+          } else {
+            extracted = extractJsTs(tree, relPath, lang)
+          }
         } else {
-          extracted = extractJsTs(tree, relPath, lang)
+          extracted = extractGeneric(tree, relPath, lang, LANGUAGE_CONFIGS[lang])
         }
       } else {
-        const cfg = LANGUAGE_CONFIGS[lang]
-        extracted = extractGeneric(tree, relPath, lang, cfg)
+        filesSkipped++; continue
       }
 
       allNodes.push(...extracted.nodes)
@@ -114,7 +125,6 @@ export async function buildGraph(args: {
       fileHashes[relPath] = hash
       filesProcessed++
     } catch {
-      // Skip unparseable files silently
       filesSkipped++
     }
   }

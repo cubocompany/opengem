@@ -92,3 +92,15 @@ export function detectLanguage(file: string): SupportedLanguage | null {
 export function isDedicated(lang: SupportedLanguage): lang is DedicatedLanguage {
   return (DEDICATED as readonly string[]).includes(lang)
 }
+
+// ── Document language detection ───────────────────────────────────────────────
+
+export type DocLanguage = "markdown" | "pdf"
+
+/** Returns doc language for non-code files, or null if not a supported doc type */
+export function detectDocLanguage(file: string): DocLanguage | null {
+  const ext = "." + (file.split(".").pop()?.toLowerCase() ?? "")
+  if (ext === ".md" || ext === ".mdx") return "markdown"
+  if (ext === ".pdf") return "pdf"
+  return null
+}
