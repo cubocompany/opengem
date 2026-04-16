@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import DirectedGraph from "graphology"
 import type { GraphState, AstNode, AstEdge } from "./types"
@@ -23,15 +23,14 @@ export async function saveGraphSummary(projectDir: string, summary: GraphSummary
   const path = graphSummaryPath(projectDir)
   const dir = dirname(path)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  await Bun.write(path, JSON.stringify(summary, null, 2) + "\n")
+  writeFileSync(path, JSON.stringify(summary, null, 2) + "\n", "utf8")
 }
 
 export async function loadGraphSummary(projectDir: string): Promise<GraphSummary | null> {
   const path = graphSummaryPath(projectDir)
   if (!existsSync(path)) return null
   try {
-    const text = await Bun.file(path).text()
-    return JSON.parse(text) as GraphSummary
+    return JSON.parse(readFileSync(path, "utf8")) as GraphSummary
   } catch {
     return null
   }
@@ -42,8 +41,7 @@ export async function loadGraphSummary(projectDir: string): Promise<GraphSummary
 export async function loadGraphState(statePath: string): Promise<GraphState | null> {
   if (!existsSync(statePath)) return null
   try {
-    const text = await Bun.file(statePath).text()
-    const parsed = JSON.parse(text) as GraphState
+    const parsed = JSON.parse(readFileSync(statePath, "utf8")) as GraphState
     if (parsed.version !== "1") return null
     return parsed
   } catch {
@@ -52,7 +50,7 @@ export async function loadGraphState(statePath: string): Promise<GraphState | nu
 }
 
 export async function saveGraphState(statePath: string, state: GraphState): Promise<void> {
-  await Bun.write(statePath, JSON.stringify(state, null, 2) + "\n")
+  writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8")
 }
 
 // ── Hashing ───────────────────────────────────────────────────────────────────

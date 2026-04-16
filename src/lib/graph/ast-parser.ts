@@ -1,6 +1,7 @@
 import { Parser, Language } from "web-tree-sitter"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
+import { readFileSync } from "node:fs"
 import { LANGUAGE_CONFIGS, extensionToLanguage } from "./language-configs"
 
 // ── Core language types ───────────────────────────────────────────────────────
@@ -66,8 +67,8 @@ export async function getParser(language: string): Promise<Parser> {
   if (!wasmName) throw new Error(`No WASM mapping for language: ${language}`)
 
   const wasmPath = join(WASM_DIR, `tree-sitter-${wasmName}.wasm`)
-  const wasmBuffer = await Bun.file(wasmPath).arrayBuffer()
-  const lang = await Language.load(new Uint8Array(wasmBuffer))
+  const wasmBuffer = readFileSync(wasmPath)
+  const lang = await Language.load(wasmBuffer)
   const parser = new Parser()
   parser.setLanguage(lang)
   parserCache.set(language, parser)

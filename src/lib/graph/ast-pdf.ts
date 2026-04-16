@@ -1,4 +1,5 @@
 import { extractText, extractLinks } from "unpdf"
+import { readFileSync } from "node:fs"
 import type { AstNode, AstEdge } from "./types"
 
 type Extracted = { nodes: AstNode[]; edges: AstEdge[] }
@@ -38,7 +39,7 @@ export async function extractPdf(filePath: string, relFile: string): Promise<Ext
     return id
   }
 
-  const buffer = await Bun.file(filePath).arrayBuffer()
+  const buffer = readFileSync(filePath).buffer as ArrayBuffer
 
   // Extract text per page
   const { totalPages, text } = await extractText(new Uint8Array(buffer), { mergePages: false })
