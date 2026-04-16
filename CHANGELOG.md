@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/cubocompany/opengem/compare/v0.3.0...v0.4.0) (2026-04-16)
+
+
+### Features
+
+* **tui:** add slash commands and automatic graph context injection ([18daeb8](https://github.com/cubocompany/opengem/commit/18daeb885522dc493bcbcd9fe957ee9a46e15cf6))
+
 # [0.3.0](https://github.com/cubocompany/opengem/compare/v0.2.2...v0.3.0) (2026-04-16)
 
 
