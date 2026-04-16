@@ -4,6 +4,34 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import { buildGraph } from "./lib/graph/graph-builder"
+import { buildDegreeMap, buildGraphologyFromState } from "./lib/graph/graph-store"
+import { detectCommunities } from "./lib/graph/graph-community"
+import { bidirectional } from "graphology-shortest-path"
+import type { GraphState } from "./lib/graph/types"
+
+// ── Local graph state (Node-compatible, no Bun APIs) ─────────────────────────
+
+function localStatePath(rootDir: string): string {
+  return join(rootDir, ".opengem", "graph-state.json")
+}
+
+function loadLocalState(rootDir: string): GraphState | null {
+  const path = localStatePath(rootDir)
+  if (!existsSync(path)) return null
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as GraphState
+    if (parsed.version !== "1") return null
+    return parsed
+  } catch { return null }
+}
+
+function saveLocalState(rootDir: string, state: GraphState): void {
+  const path = localStatePath(rootDir)
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  writeFileSync(path, JSON.stringify(state, null, 2) + "\n", "utf8")
+}
 
 // ── Obsidian CLI helpers ──────────────────────────────────────────────────────
 
@@ -20,7 +48,6 @@ function cliVersion(): string | null {
 
 type VaultStatus = { running: boolean; active: string | null; all: string[] }
 
-/** Single call to get all vault info — avoids multiple obsidian invocations. */
 function getVaultStatus(): VaultStatus {
   const vaultResult = obsidian(["vault"])
   const running = vaultResult.exitCode === 0
@@ -121,9 +148,232 @@ function saveConfig(configPath: string, vault: string) {
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8")
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Help ──────────────────────────────────────────────────────────────────────
 
-async function main() {
+function showHelp() {
+  console.log(`
+  opengem <command>
+
+  Commands:
+    init             Set up OpenGem (Obsidian vault, wiki structure, OpenCode config)
+    graph [dir]      Index source code into a local knowledge graph  (default: .)
+    query <search>   Search the graph for nodes matching a name or file
+    explain <sym>    Show incoming and outgoing edges for a symbol
+    path <a> <b>     Find the shortest path between two symbols
+
+  Examples:
+    opengem init
+    opengem graph ./src
+    opengem query buildGraph
+    opengem explain runGraphIndexTool
+    opengem path runGraphIndexTool detectCommunities
+`)
+}
+
+// ── Commands ──────────────────────────────────────────────────────────────────
+
+async function cmdGraph(dirArg?: string) {
+  const rootDir = resolve(dirArg ?? ".")
+  console.log()
+  p.intro("opengem graph")
+
+  const s = p.spinner()
+  s.start(`Scanning ${rootDir} …`)
+
+  const existing = loadLocalState(rootDir)
+
+  let result: Awaited<ReturnType<typeof buildGraph>>
+  try {
+    result = await buildGraph({ rootDir, existing })
+  } catch (err) {
+    s.stop("Build failed")
+    console.error(err)
+    process.exit(1)
+  }
+
+  const { nodes, edges, fileHashes, filesProcessed, filesSkipped } = result
+
+  const graphology = buildGraphologyFromState({
+    version: "1",
+    indexedAt: new Date().toISOString(),
+    rootDir,
+    fileHashes,
+    nodes,
+    edges,
+    communities: {},
+  })
+  const communities = detectCommunities(graphology)
+  const communityCount = new Set(Object.values(communities)).size
+  const resolvedEdges = edges.filter(e => !e.target.startsWith("__unresolved__")).length
+
+  const state: GraphState = {
+    version: "1",
+    indexedAt: new Date().toISOString(),
+    rootDir,
+    fileHashes,
+    nodes,
+    edges,
+    communities,
+  }
+  saveLocalState(rootDir, state)
+
+  // Save summary for the system-transform hook (graph context injection)
+  const summaryPath = join(rootDir, ".opengem", "graph-summary.json")
+  writeFileSync(summaryPath, JSON.stringify({
+    version: "1",
+    rootDir,
+    indexedAt: state.indexedAt,
+    nodeCount: nodes.length,
+    edgeCount: resolvedEdges,
+    communityCount,
+  }, null, 2) + "\n", "utf8")
+
+  const cacheNote = filesSkipped > 0 ? ` (${filesSkipped} cached)` : ""
+  s.stop(`Indexed ${filesProcessed} files${cacheNote} — ${nodes.length} nodes · ${resolvedEdges} edges · ${communityCount} communities`)
+  p.outro(`Saved to .opengem/graph-state.json`)
+}
+
+async function cmdQuery(query: string) {
+  if (!query.trim()) {
+    console.error("\nUsage: opengem query <search>\n")
+    process.exit(1)
+  }
+
+  const rootDir = resolve(".")
+  const state = loadLocalState(rootDir)
+  if (!state) {
+    console.error("\nNo graph found. Run `opengem graph` first.\n")
+    process.exit(1)
+  }
+
+  const degrees = buildDegreeMap(state.nodes, state.edges)
+  const q = query.toLowerCase()
+  const matches = state.nodes
+    .filter(n => n.name.toLowerCase().includes(q) || n.file.toLowerCase().includes(q))
+    .sort((a, b) => (degrees.get(b.id) ?? 0) - (degrees.get(a.id) ?? 0))
+    .slice(0, 20)
+
+  if (matches.length === 0) {
+    console.log(`\n  No matches for "${query}"\n`)
+    return
+  }
+
+  console.log()
+  const W = { name: 38, kind: 10 }
+  console.log(`  ${"name".padEnd(W.name)} ${"kind".padEnd(W.kind)} location`)
+  console.log(`  ${"─".repeat(W.name)} ${"─".repeat(W.kind)} ${"─".repeat(40)}`)
+  for (const n of matches) {
+    const edgeCount = degrees.get(n.id) ?? 0
+    const loc = `${n.file}:${n.line}`
+    console.log(`  ${n.name.padEnd(W.name)} ${n.kind.padEnd(W.kind)} ${loc}  (edges: ${edgeCount}, community: ${state.communities[n.id] ?? 0})`)
+  }
+  console.log()
+}
+
+async function cmdExplain(symbol: string) {
+  if (!symbol.trim()) {
+    console.error("\nUsage: opengem explain <symbol>\n")
+    process.exit(1)
+  }
+
+  const rootDir = resolve(".")
+  const state = loadLocalState(rootDir)
+  if (!state) {
+    console.error("\nNo graph found. Run `opengem graph` first.\n")
+    process.exit(1)
+  }
+
+  const node = state.nodes.find(n => n.name === symbol || n.id.endsWith(`#${symbol}`))
+  if (!node) {
+    console.error(`\n  Symbol not found: ${symbol}\n  Tip: opengem query ${symbol}\n`)
+    process.exit(1)
+  }
+
+  const nodeIndex = new Map(state.nodes.map(n => [n.id, n]))
+  const incoming = state.edges.filter(e => e.target === node.id && !e.source.startsWith("__unresolved__"))
+  const outgoing = state.edges.filter(e => e.source === node.id && !e.target.startsWith("__unresolved__"))
+
+  const MAX = 15
+
+  console.log()
+  console.log(`  ${node.name}  (${node.kind})  ${node.file}:${node.line}`)
+
+  if (incoming.length === 0 && outgoing.length === 0) {
+    console.log("\n  No connections found.\n")
+    return
+  }
+
+  if (incoming.length > 0) {
+    console.log(`\n  Incoming (${incoming.length}):`)
+    for (const e of incoming.slice(0, MAX)) {
+      const src = nodeIndex.get(e.source)
+      console.log(`    ← ${e.kind.padEnd(10)} ${src?.name ?? e.source}  (${src?.file ?? ""})`)
+    }
+    if (incoming.length > MAX) console.log(`    … and ${incoming.length - MAX} more`)
+  }
+
+  if (outgoing.length > 0) {
+    console.log(`\n  Outgoing (${outgoing.length}):`)
+    for (const e of outgoing.slice(0, MAX)) {
+      const tgt = nodeIndex.get(e.target)
+      console.log(`    → ${e.kind.padEnd(10)} ${tgt?.name ?? e.target}  (${tgt?.file ?? ""})`)
+    }
+    if (outgoing.length > MAX) console.log(`    … and ${outgoing.length - MAX} more`)
+  }
+
+  console.log()
+}
+
+async function cmdPath(from?: string, to?: string) {
+  if (!from || !to) {
+    console.error("\nUsage: opengem path <from> <to>\n")
+    process.exit(1)
+  }
+
+  const rootDir = resolve(".")
+  const state = loadLocalState(rootDir)
+  if (!state) {
+    console.error("\nNo graph found. Run `opengem graph` first.\n")
+    process.exit(1)
+  }
+
+  const nodeIndex = new Map(state.nodes.map(n => [n.id, n]))
+  const findNode = (sym: string) => state.nodes.find(n => n.name === sym || n.id.endsWith(`#${sym}`))
+
+  const fromNode = findNode(from)
+  const toNode = findNode(to)
+  if (!fromNode) { console.error(`\n  Symbol not found: ${from}\n`); process.exit(1) }
+  if (!toNode) { console.error(`\n  Symbol not found: ${to}\n`); process.exit(1) }
+
+  const g = buildGraphologyFromState(state)
+
+  if (!g.hasNode(fromNode.id) || !g.hasNode(toNode.id)) {
+    console.log(`\n  One or both symbols have no edges in the graph.\n`)
+    return
+  }
+
+  const path = bidirectional(g, fromNode.id, toNode.id)
+
+  if (!path || path.length === 0) {
+    console.log(`\n  No path found between "${from}" and "${to}"\n`)
+    return
+  }
+
+  const hops = path.length - 1
+  console.log()
+  console.log(`  Path (${hops} hop${hops !== 1 ? "s" : ""}):`)
+  console.log(`  ${path.map(id => nodeIndex.get(id)?.name ?? id).join(" → ")}`)
+  console.log()
+  for (let i = 0; i < path.length; i++) {
+    const n = nodeIndex.get(path[i])
+    if (n) console.log(`    ${i + 1}. ${n.name}  (${n.kind})  ${n.file}:${n.line}`)
+  }
+  console.log()
+}
+
+// ── Init command (original setup flow) ───────────────────────────────────────
+
+async function cmdInit() {
   console.log()
   p.intro("OpenGem Setup")
 
@@ -163,7 +413,7 @@ async function main() {
     s.stop("Obsidian app is running")
   }
 
-  // 3. Pick vault — reuse already-fetched vault status (no extra obsidian calls)
+  // 3. Pick vault
   const { active, all } = vaultStatus
 
   if (all.length === 0 && !active) {
@@ -238,8 +488,29 @@ async function main() {
 
   // 7. Done
   p.outro(
-    `You're ready! Open OpenCode in any project and say:\n  "Add this article to my wiki: https://..."`
+    `You're ready! Open OpenCode in any project and say:\n  "Add this article to my wiki: https://..."\n\nTo index your code: opengem graph`
   )
+}
+
+// ── Dispatch ──────────────────────────────────────────────────────────────────
+
+async function main() {
+  const [,, cmd, ...rest] = process.argv
+
+  if (cmd === "--help" || cmd === "-h") { showHelp(); return }
+
+  switch (cmd) {
+    case undefined:
+    case "init":    await cmdInit(); break
+    case "graph":   await cmdGraph(rest[0]); break
+    case "query":   await cmdQuery(rest.join(" ")); break
+    case "explain": await cmdExplain(rest.join(" ")); break
+    case "path":    await cmdPath(rest[0], rest[1]); break
+    default:
+      console.error(`\n  Unknown command: ${cmd}\n`)
+      showHelp()
+      process.exit(1)
+  }
 }
 
 main().catch(err => {

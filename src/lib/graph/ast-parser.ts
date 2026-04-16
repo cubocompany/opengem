@@ -1,32 +1,71 @@
 import { Parser, Language } from "web-tree-sitter"
-import { join } from "node:path"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
+import { LANGUAGE_CONFIGS, extensionToLanguage } from "./language-configs"
 
-type SupportedLanguage = "javascript" | "typescript" | "python"
+// ── Core language types ───────────────────────────────────────────────────────
 
-const parserCache = new Map<SupportedLanguage, Parser>()
+/** Languages with dedicated extractors (JS/TS/Python) */
+export type DedicatedLanguage = "javascript" | "typescript" | "python"
+
+/** All languages supported by the generic extractor */
+export type GenericLanguage = keyof typeof LANGUAGE_CONFIGS
+
+/** Union of all supported languages */
+export type SupportedLanguage = DedicatedLanguage | GenericLanguage
+
+const DEDICATED: readonly DedicatedLanguage[] = ["javascript", "typescript", "python"]
+
+// ── WASM path map ─────────────────────────────────────────────────────────────
+
+// createRequire resolves package paths correctly regardless of bundle nesting depth.
+const _require = createRequire(import.meta.url)
+const WASM_DIR = join(dirname(_require.resolve("@repomix/tree-sitter-wasms/package.json")), "out")
+
+const WASM_NAME: Record<string, string> = {
+  // Dedicated
+  javascript: "javascript",
+  typescript: "typescript",
+  python:     "python",
+  // Generic — key must match LANGUAGE_CONFIGS key and the wasm filename
+  go:         "go",
+  rust:       "rust",
+  java:       "java",
+  c:          "c",
+  cpp:        "cpp",
+  ruby:       "ruby",
+  kotlin:     "kotlin",
+  swift:      "swift",
+  lua:        "lua",
+  scala:      "scala",
+  php:        "php",
+  csharp:     "c_sharp",
+}
+
+// ── Parser singleton ──────────────────────────────────────────────────────────
+
+const parserCache = new Map<string, Parser>()
 let initPromise: Promise<void> | null = null
 
 async function ensureInit(): Promise<void> {
   if (!initPromise) {
     initPromise = Parser.init({
-      locateFile: () => join(import.meta.dirname, "../../../node_modules/web-tree-sitter/web-tree-sitter.wasm"),
+      locateFile: () => join(dirname(_require.resolve("web-tree-sitter/package.json")), "web-tree-sitter.wasm"),
     })
   }
   return initPromise
 }
 
-const wasmPaths: Record<SupportedLanguage, string> = {
-  javascript: join(import.meta.dirname, "../../../node_modules/tree-sitter-wasms/out/tree-sitter-javascript.wasm"),
-  typescript: join(import.meta.dirname, "../../../node_modules/tree-sitter-wasms/out/tree-sitter-typescript.wasm"),
-  python: join(import.meta.dirname, "../../../node_modules/tree-sitter-wasms/out/tree-sitter-python.wasm"),
-}
-
-export async function getParser(language: SupportedLanguage): Promise<Parser> {
+export async function getParser(language: string): Promise<Parser> {
   if (parserCache.has(language)) return parserCache.get(language)!
 
   await ensureInit()
 
-  const wasmBuffer = await Bun.file(wasmPaths[language]).arrayBuffer()
+  const wasmName = WASM_NAME[language]
+  if (!wasmName) throw new Error(`No WASM mapping for language: ${language}`)
+
+  const wasmPath = join(WASM_DIR, `tree-sitter-${wasmName}.wasm`)
+  const wasmBuffer = await Bun.file(wasmPath).arrayBuffer()
   const lang = await Language.load(new Uint8Array(wasmBuffer))
   const parser = new Parser()
   parser.setLanguage(lang)
@@ -34,10 +73,22 @@ export async function getParser(language: SupportedLanguage): Promise<Parser> {
   return parser
 }
 
+// ── Language detection ────────────────────────────────────────────────────────
+
+/** Returns the language key or null if unsupported */
 export function detectLanguage(file: string): SupportedLanguage | null {
-  const ext = file.split(".").pop()?.toLowerCase()
-  if (ext === "ts" || ext === "tsx") return "typescript"
-  if (ext === "js" || ext === "mjs" || ext === "cjs") return "javascript"
-  if (ext === "py") return "python"
-  return null
+  const ext = "." + (file.split(".").pop()?.toLowerCase() ?? "")
+
+  // Dedicated extractors first (overlap prevention)
+  if (ext === ".ts" || ext === ".tsx") return "typescript"
+  if (ext === ".js" || ext === ".mjs" || ext === ".cjs") return "javascript"
+  if (ext === ".py") return "python"
+
+  // Generic extractor languages
+  return extensionToLanguage(ext) as GenericLanguage | null
+}
+
+/** True if this language uses the dedicated extractor */
+export function isDedicated(lang: SupportedLanguage): lang is DedicatedLanguage {
+  return (DEDICATED as readonly string[]).includes(lang)
 }

@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
-import { getParser, detectLanguage } from "./ast-parser"
+import { getParser, detectLanguage, isDedicated } from "./ast-parser"
 import { extractJsTs } from "./ast-js"
 import { extractPython } from "./ast-py"
+import { extractGeneric } from "./ast-generic"
+import { LANGUAGE_CONFIGS } from "./language-configs"
 import { computeFileHash } from "./graph-store"
 import type { AstNode, AstEdge, GraphState } from "./types"
 
@@ -42,7 +44,8 @@ export async function buildGraph(args: {
   languages?: string[]
 }): Promise<BuildResult> {
   const allFiles = collectFiles(args.rootDir, args.rootDir)
-  const allowedLangs = new Set(args.languages ?? ["typescript", "javascript", "python"])
+  const defaultLangs = ["typescript", "javascript", "python", ...Object.keys(LANGUAGE_CONFIGS)]
+  const allowedLangs = new Set(args.languages ?? defaultLangs)
 
   const existingHashes = args.existing?.fileHashes ?? {}
   const existingNodesByFile = new Map<string, AstNode[]>()
@@ -95,10 +98,15 @@ export async function buildGraph(args: {
       if (!tree) { filesSkipped++; continue }
       let extracted: { nodes: AstNode[]; edges: AstEdge[] }
 
-      if (lang === "python") {
-        extracted = extractPython(tree, relPath)
+      if (isDedicated(lang)) {
+        if (lang === "python") {
+          extracted = extractPython(tree, relPath)
+        } else {
+          extracted = extractJsTs(tree, relPath, lang)
+        }
       } else {
-        extracted = extractJsTs(tree, relPath, lang)
+        const cfg = LANGUAGE_CONFIGS[lang]
+        extracted = extractGeneric(tree, relPath, lang, cfg)
       }
 
       allNodes.push(...extracted.nodes)
